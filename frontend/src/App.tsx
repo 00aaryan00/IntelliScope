@@ -9,6 +9,7 @@ import { MobileMenuPage } from './pages/MobileMenuPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { AuthPage } from './pages/AuthPage'
+import { AlertsPage } from './pages/AlertsPage'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="/detail/:id" element={<IntelligenceDetail />} />
           
           <Route path="/saved" element={<SavedPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/menu" element={<MobileMenuPage />} />

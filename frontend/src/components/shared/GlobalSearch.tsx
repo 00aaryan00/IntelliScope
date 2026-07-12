@@ -43,11 +43,10 @@ export function GlobalSearch() {
       {/* Floating Mobile Trigger */}
       <button 
         onClick={() => setIsOpen(true)}
-        className="md:hidden fixed bottom-20 right-4 w-14 h-14 bg-blue-600 rounded-full shadow-lg shadow-blue-900/50 flex items-center justify-center text-white z-40 hover:bg-blue-500 transition-transform active:scale-95"
+        className="md:hidden fixed bottom-20 right-4 w-14 h-14 bg-blue-600 rounded-full shadow-lg shadow-blue-900/50 flex items-center justify-center text-white z-40 hover:bg-blue-500 transition-transform active:scale-95 group"
       >
-        <Search size={24} />
+        <Sparkles size={24} className="group-hover:scale-110 transition-transform" />
       </button>
-
       <AnimatePresence>
         {isOpen && (
           <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[5vh] md:pt-[15vh] px-4">

@@ -1,10 +1,10 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { GlobalSearch } from '../shared/GlobalSearch';
 import { useTheme } from '../../lib/ThemeContext';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Bell } from 'lucide-react';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -24,6 +24,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <main className="flex-1 w-full pb-16 md:pb-0 overflow-x-hidden relative">
         <div className="absolute top-4 right-4 md:top-8 md:right-8 flex items-center gap-4 z-50">
+          <Link to="/alerts" className="hidden md:flex p-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-sm relative group" title="Notifications">
+            <Bell size={18} />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+          </Link>
           <button onClick={toggleTheme} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm" title="Toggle Theme">
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
