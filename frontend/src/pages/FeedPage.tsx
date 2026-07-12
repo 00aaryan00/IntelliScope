@@ -28,15 +28,15 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      <header className="border-b border-slate-800 pb-6">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mb-2">{title}</h1>
-        <p className="text-slate-400 text-sm max-w-2xl">{description}</p>
+      <header className="border-b border-slate-200 dark:border-slate-800 pb-6 pr-24">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">{title}</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-2xl">{description}</p>
       </header>
       
       {/* Filter and Sort Bar */}
       <div className="flex items-center justify-between pb-2">
         <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full pr-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="flex items-center gap-2 text-slate-500 mr-2 flex-shrink-0">
+          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 mr-2 flex-shrink-0">
             <Filter size={16} />
           </div>
           {filters.map(f => (
@@ -46,14 +46,14 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
               className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium border transition-colors flex-shrink-0 ${
                 activeFilter === f 
                   ? 'bg-blue-600 border-blue-500 text-white shadow-sm shadow-blue-900/20' 
-                  : 'bg-slate-900/50 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {f}
             </button>
           ))}
         </div>
-        <button className="hidden md:flex items-center gap-2 whitespace-nowrap px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white transition-colors flex-shrink-0">
+        <button className="hidden md:flex items-center gap-2 whitespace-nowrap px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex-shrink-0">
           Sort: Newest <ChevronDown size={14} />
         </button>
       </div>

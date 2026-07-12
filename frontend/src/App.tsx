@@ -22,18 +22,17 @@ function App() {
           <Route path="/news" element={<FeedPage title="AI News" description="Latest updates and breakthroughs." typeFilter="news" />} />
           <Route path="/funding" element={<FeedPage title="Startup Funding" description="Venture capital investments in the AI sector." typeFilter="funding" />} />
           <Route path="/research" element={<FeedPage title="Research Papers" description="Cutting-edge AI research from Arxiv and top labs." typeFilter="research" />} />
+          <Route path="/models" element={<FeedPage title="Models & Releases" description="Latest foundational and fine-tuned model releases." typeFilter="models" />} />
+          <Route path="/vc" element={<FeedPage title="VC Intelligence" description="Venture capital strategies and new fund announcements." typeFilter="vc" />} />
+          <Route path="/gov" element={<FeedPage title="Government & Policy" description="AI regulations, policy updates, and government spending." typeFilter="gov" />} />
+          <Route path="/opensource" element={<FeedPage title="Open Source" description="Major open-source ecosystem updates." typeFilter="opensource" />} />
+          <Route path="/dev" element={<FeedPage title="Dev Ecosystem" description="Developer tools, frameworks, and SDK updates." typeFilter="dev" />} />
+          <Route path="/social" element={<FeedPage title="Social Intelligence" description="Trending topics and sentiment analysis across social platforms." typeFilter="social" />} />
+          <Route path="/business" element={<FeedPage title="Business Intel" description="Enterprise AI adoption and competitor product launches." typeFilter="business" />} />
           
           {/* Detail View */}
           <Route path="/detail/:id" element={<IntelligenceDetail />} />
-
-          {/* Fallbacks */}
-          <Route path="/models" element={<ComingSoon title="Models & Releases" />} />
-          <Route path="/vc" element={<ComingSoon title="VC Intelligence" />} />
-          <Route path="/gov" element={<ComingSoon title="Government & Policy" />} />
-          <Route path="/opensource" element={<ComingSoon title="Open Source" />} />
-          <Route path="/dev" element={<ComingSoon title="Dev Ecosystem" />} />
-          <Route path="/social" element={<ComingSoon title="Social Intelligence" />} />
-          <Route path="/business" element={<ComingSoon title="Business Intel" />} />
+          
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

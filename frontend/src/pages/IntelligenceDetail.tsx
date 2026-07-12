@@ -15,19 +15,19 @@ export function IntelligenceDetail() {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 max-w-4xl mx-auto space-y-8"
     >
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-blue-400 transition-colors focus:outline-none">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none">
         <ArrowLeft size={16} /> Back
       </button>
 
-      <header className="space-y-4">
-        <div className="flex items-center gap-3 text-sm text-slate-400">
-          <span className="uppercase tracking-wider font-semibold text-blue-400">{data.type}</span>
-          <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+      <header className="space-y-4 pr-24">
+        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+          <span className="uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">{data.type}</span>
+          <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
           <span>{data.source}</span>
-          <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+          <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
           <span>{data.timeAgo}</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
           {data.title}
         </h1>
         <div className="pt-2">
@@ -39,13 +39,13 @@ export function IntelligenceDetail() {
 
       <div className="grid gap-6">
         {/* AI Analysis Section */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="bg-slate-950/50 px-6 py-4 border-b border-slate-800 flex items-center gap-2">
-            <Zap size={18} className="text-blue-400" />
-            <h2 className="font-semibold text-white">AI Executive Summary</h2>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-slate-50 dark:bg-slate-950/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <Zap size={18} className="text-blue-600 dark:text-blue-400" />
+            <h2 className="font-semibold text-slate-900 dark:text-white">AI Executive Summary</h2>
           </div>
           <div className="p-6">
-            <p className="text-slate-300 leading-relaxed text-lg">
+            <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">
               {data.aiSummary}
             </p>
           </div>
@@ -53,13 +53,13 @@ export function IntelligenceDetail() {
 
         {/* Business Relevance Section */}
         {data.businessImpact && (
-          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl overflow-hidden shadow-sm">
-            <div className="bg-orange-500/20 px-6 py-4 border-b border-orange-500/20 flex items-center gap-2">
-              <Building2 size={18} className="text-orange-400" />
-              <h2 className="font-semibold text-orange-400">Viorant Impact Analysis</h2>
+          <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-orange-100 dark:bg-orange-500/20 px-6 py-4 border-b border-orange-200 dark:border-orange-500/20 flex items-center gap-2">
+              <Building2 size={18} className="text-orange-600 dark:text-orange-400" />
+              <h2 className="font-semibold text-orange-700 dark:text-orange-400">Tasknova Impact Analysis</h2>
             </div>
             <div className="p-6">
-              <p className="text-orange-200 leading-relaxed">
+              <p className="text-orange-800 dark:text-orange-200 leading-relaxed">
                 {data.businessImpact}
               </p>
             </div>
@@ -67,19 +67,19 @@ export function IntelligenceDetail() {
         )}
 
         {/* Knowledge Graph / Related Objects */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm mt-8">
-          <div className="bg-slate-950/50 px-6 py-4 border-b border-slate-800 flex items-center gap-2">
-            <Network size={18} className="text-purple-400" />
-            <h2 className="font-semibold text-white">Related Intelligence</h2>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm mt-8">
+          <div className="bg-slate-50 dark:bg-slate-950/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <Network size={18} className="text-purple-600 dark:text-purple-400" />
+            <h2 className="font-semibold text-slate-900 dark:text-white">Related Intelligence</h2>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border border-slate-800 rounded-lg bg-slate-950 hover:border-slate-600 transition-colors cursor-pointer">
-              <p className="text-xs text-purple-400 font-semibold mb-1">RESEARCH PAPER</p>
-              <h3 className="text-sm text-slate-200 font-medium">Evaluating LLM Reasoning Capabilities in Coding Tasks</h3>
+            <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
+              <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold mb-1">RESEARCH PAPER</p>
+              <h3 className="text-sm text-slate-700 dark:text-slate-200 font-medium">Evaluating LLM Reasoning Capabilities in Coding Tasks</h3>
             </div>
-            <div className="p-4 border border-slate-800 rounded-lg bg-slate-950 hover:border-slate-600 transition-colors cursor-pointer">
-              <p className="text-xs text-emerald-400 font-semibold mb-1">COMPETITOR</p>
-              <h3 className="text-sm text-slate-200 font-medium">Devin by Cognition AI</h3>
+            <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-1">COMPETITOR</p>
+              <h3 className="text-sm text-slate-700 dark:text-slate-200 font-medium">Devin by Cognition AI</h3>
             </div>
           </div>
         </div>
