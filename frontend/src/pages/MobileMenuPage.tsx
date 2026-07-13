@@ -2,12 +2,10 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   Home, Newspaper, Cpu, DollarSign, Briefcase, GraduationCap, 
-  Landmark, Code, Terminal, MessageSquare, Building2, Bookmark, Settings, User, Sun, Moon
+  Landmark, Code, Terminal, MessageSquare, Building2, Bookmark, Settings, User
 } from 'lucide-react';
-import { useTheme } from '../lib/ThemeContext';
 
 export function MobileMenuPage() {
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="p-4 pb-24 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -28,10 +26,7 @@ export function MobileMenuPage() {
       </div>
       
       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
-        <button onClick={toggleTheme} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-colors bg-slate-100 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800">
-          <div className="opacity-80">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</div>
-          <span className="text-base">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-        </button>
+
         <MenuLink to="/saved" icon={<Bookmark size={20} />} label="Saved Intelligence" />
         <MenuLink to="/settings" icon={<Settings size={20} />} label="Settings" />
         <MenuLink to="/profile" icon={<User size={20} />} label="Profile" />
