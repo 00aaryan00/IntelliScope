@@ -7,7 +7,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     type: "news",
     title: "OpenAI releases advanced reasoning model o1",
     source: "OpenAI Blog",
-    timeAgo: "2 hours ago",
+    timeAgo: "1 hours ago",
     aiSummary: "The new o1 model demonstrates significant improvements in coding, math, and multi-step reasoning compared to GPT-4o.",
     businessImpact: "Highly relevant for Tasknova's agent development.",
     impactLevel: "high"
@@ -17,7 +17,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     type: "news",
     title: "Anthropic introduces Claude 3.5 Sonnet with Computer Use",
     source: "Anthropic",
-    timeAgo: "5 hours ago",
+    timeAgo: "4 hours ago",
     aiSummary: "The new model can perceive and interact with computer interfaces directly, moving the cursor, clicking, and typing text.",
     businessImpact: "Direct competitor to our core technology.",
     impactLevel: "high"
@@ -29,7 +29,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     type: "funding",
     title: "Perplexity AI raises $73.6M Series B",
     source: "TechCrunch",
-    timeAgo: "2 days ago",
+    timeAgo: "3 days ago",
     aiSummary: "Search startup Perplexity raises at a $520M valuation led by IVP.",
     impactLevel: "low"
   },
