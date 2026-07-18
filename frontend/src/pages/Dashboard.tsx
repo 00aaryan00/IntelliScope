@@ -104,6 +104,45 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+      {/* Semantic Clustering: Trending Events */}
+      {data.trending_events && data.trending_events.length > 0 && (
+        <div className="mt-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-xl">🔥</span>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Trending Events Across Platforms</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.trending_events.map((event: any) => (
+              <Link to={`/detail/${event.id}`} key={event.id} className="block group">
+                <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 h-full hover:border-slate-300 dark:hover:border-slate-500 hover:shadow-md transition-all">
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2">
+                    {event.title}
+                  </h3>
+                  <div className="flex flex-col gap-2 mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-xs text-slate-500 font-medium">
+                      Reported by {event.articleCount} sources:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {event.sources.slice(0, 3).map((source: string) => (
+                        <span key={source} className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded">
+                          {source}
+                        </span>
+                      ))}
+                      {event.sources.length > 3 && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded">
+                          +{event.sources.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

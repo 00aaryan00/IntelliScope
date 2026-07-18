@@ -88,6 +88,16 @@ def get_category_stats(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 from sqlalchemy import func
+import math
+
+def cosine_similarity(v1, v2):
+    if v1 is None or v2 is None: return 0
+    dot_product = sum(a*b for a, b in zip(v1, v2))
+    magnitude1 = math.sqrt(sum(a*a for a in v1))
+    magnitude2 = math.sqrt(sum(b*b for b in v2))
+    if magnitude1 * magnitude2 == 0:
+        return 0
+    return dot_product / (magnitude1 * magnitude2)
 
 @router.get("/api/dashboard")
 def get_dashboard_data(db: Session = Depends(get_db)):
@@ -143,10 +153,58 @@ def get_dashboard_data(db: Session = Depends(get_db)):
         profile = user.profile if user else None
         trending = profile.focus_tags if profile and profile.focus_tags else ["AI", "Startups", "Technology"]
         
+        # 4. Semantic Clustering: Find trending events in last 48h
+        forty_eight_hours_ago = now - timedelta(days=2)
+        articles_with_embeddings = (
+            db.query(ProcessedArticle, Embedding)
+            .join(Embedding, ProcessedArticle.id == Embedding.processed_article_id)
+            .filter(ProcessedArticle.created_at >= forty_eight_hours_ago)
+            .order_by(desc(ProcessedArticle.created_at))
+            .all()
+        )
+        
+        clusters = []
+        visited = set()
+        
+        for i, (art1, emb1) in enumerate(articles_with_embeddings):
+            if i in visited:
+                continue
+            
+            current_cluster = [art1]
+            visited.add(i)
+            
+            for j, (art2, emb2) in enumerate(articles_with_embeddings):
+                if j in visited:
+                    continue
+                # If embeddings are highly similar, they are the same event
+                sim = cosine_similarity(emb1.embedding, emb2.embedding)
+                if sim > 0.85:
+                    current_cluster.append(art2)
+                    visited.add(j)
+                    
+            if len(current_cluster) > 1:
+                clusters.append(current_cluster)
+        
+        # Format clusters for frontend
+        trending_events = []
+        for cluster in clusters:
+            lead_article = cluster[0]
+            sources = list(set([a.author for a in cluster if a.author] + [lead_article.raw_article.url.split('/')[2] if lead_article.raw_article else "Web"]))
+            trending_events.append({
+                "id": str(lead_article.id),
+                "title": lead_article.title,
+                "sources": sources,
+                "articleCount": len(cluster)
+            })
+            
+        # Sort by most articles in cluster
+        trending_events.sort(key=lambda x: x["articleCount"], reverse=True)
+        
         return {
             "brief": brief,
             "pulse": pulse,
-            "trending": trending
+            "trending": trending,
+            "trending_events": trending_events[:3] # Return top 3 clusters
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
