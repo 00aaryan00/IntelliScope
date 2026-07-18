@@ -161,7 +161,7 @@ export function IntelligenceObjectCard({
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-3" title={title}>
           {title}
         </h3>
 

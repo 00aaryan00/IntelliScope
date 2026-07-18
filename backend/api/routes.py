@@ -373,3 +373,87 @@ def get_similar_articles(article_id: int, db: Session = Depends(get_db)):
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/alerts")
+def get_alerts(db: Session = Depends(get_db)):
+    """
+    Fetches high-impact alerts: 
+    1. Articles with score >= 80 in last 48h
+    2. Trending events (clusters >= 3) in last 48h
+    """
+    try:
+        user = db.query(User).first()
+        user_id = user.id if user else None
+        
+        now = datetime.utcnow()
+        if now.tzinfo is not None:
+             from datetime import timezone
+             now = datetime.now(timezone.utc)
+        forty_eight_hours_ago = now - timedelta(days=2)
+        
+        alerts = []
+        
+        # 1. High Score Articles
+        high_score_query = (
+            db.query(ProcessedArticle, UserArticleScore)
+            .join(UserArticleScore, ProcessedArticle.id == UserArticleScore.processed_article_id)
+            .filter(ProcessedArticle.created_at >= forty_eight_hours_ago)
+            .filter(UserArticleScore.user_id == user_id)
+            .filter(UserArticleScore.personal_relevance_score >= 80)
+            .order_by(desc(ProcessedArticle.created_at))
+            .all()
+        )
+        
+        for article, score in high_score_query:
+            alerts.append({
+                "id": str(article.id),
+                "type": "high_score",
+                "title": article.title,
+                "score": score.personal_relevance_score,
+                "timestamp": (article.published_date or article.created_at).isoformat()
+            })
+            
+        # 2. Trending Clusters
+        articles_with_embeddings = (
+            db.query(ProcessedArticle, Embedding)
+            .join(Embedding, ProcessedArticle.id == Embedding.processed_article_id)
+            .filter(ProcessedArticle.created_at >= forty_eight_hours_ago)
+            .order_by(desc(ProcessedArticle.created_at))
+            .all()
+        )
+        
+        clusters = []
+        visited = set()
+        
+        for i, (art1, emb1) in enumerate(articles_with_embeddings):
+            if i in visited: continue
+            current_cluster = [art1]
+            visited.add(i)
+            for j, (art2, emb2) in enumerate(articles_with_embeddings):
+                if j in visited: continue
+                sim = cosine_similarity(emb1.embedding, emb2.embedding)
+                if sim > 0.85:
+                    current_cluster.append(art2)
+                    visited.add(j)
+            
+            if len(current_cluster) >= 3:
+                clusters.append(current_cluster)
+                
+        for cluster in clusters:
+            lead_article = cluster[0]
+            sources = list(set([a.author for a in cluster if a.author] + [lead_article.raw_article.url.split('/')[2] if lead_article.raw_article else "Web"]))
+            alerts.append({
+                "id": str(lead_article.id),
+                "type": "trending_event",
+                "title": lead_article.title,
+                "articleCount": len(cluster),
+                "sources": sources,
+                "timestamp": (lead_article.published_date or lead_article.created_at).isoformat()
+            })
+            
+        # Sort combined alerts by recency
+        alerts.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return alerts
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

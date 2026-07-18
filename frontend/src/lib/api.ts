@@ -154,3 +154,14 @@ export const updateProfile = async (profile: UserProfile): Promise<boolean> => {
     return false;
   }
 };
+
+export const fetchAlerts = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/alerts`);
+    if (!response.ok) throw new Error('Failed to fetch alerts');
+    return await response.json();
+  } catch (error) {
+    console.error("Could not fetch alerts:", error);
+    return [];
+  }
+};

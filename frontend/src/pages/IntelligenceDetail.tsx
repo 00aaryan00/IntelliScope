@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Zap, Network, Building2, Code, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Zap, Network, Building2, Code, Loader2, Bookmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fetchArticleById, fetchSimilarArticles, type IntelligenceObjectDetail } from '../lib/api';
 import { type IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
@@ -12,6 +12,45 @@ export function IntelligenceDetail() {
   const [data, setData] = useState<IntelligenceObjectDetail | null>(null);
   const [similarArticles, setSimilarArticles] = useState<IntelligenceObjectCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
+      setIsSaved(saved.some((item: any) => item.id === id));
+    } catch {
+      // ignore
+    }
+  }, [id]);
+
+  const toggleSave = () => {
+    if (!data) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
+      if (isSaved) {
+        const newSaved = saved.filter((item: any) => item.id !== id);
+        localStorage.setItem('saved_articles', JSON.stringify(newSaved));
+        setIsSaved(false);
+        showTemporaryToast("Removed from Saved");
+      } else {
+        saved.push(data);
+        localStorage.setItem('saved_articles', JSON.stringify(saved));
+        setIsSaved(true);
+        showTemporaryToast("Saved to Library");
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const showTemporaryToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  };
 
   useEffect(() => {
     const loadArticle = async () => {
@@ -58,7 +97,34 @@ export function IntelligenceDetail() {
         <ArrowLeft size={16} /> Back
       </button>
 
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium px-4 py-2 rounded-full shadow-lg"
+          >
+            {toastMessage}
+          </motion.div>
+        </div>
+      )}
+
       <header className="space-y-4 pr-24 relative">
+        <div className="absolute top-0 right-0">
+          <button 
+            onClick={toggleSave}
+            className={`p-2.5 backdrop-blur border rounded-full transition-all shadow-sm ${
+              isSaved 
+                ? 'bg-blue-600 border-blue-500 text-white' 
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-blue-600 dark:hover:border-blue-500'
+            }`}
+            title={isSaved ? "Remove from saved" : "Save article"}
+          >
+            <Bookmark size={20} className={isSaved ? "fill-white" : ""} />
+          </button>
+        </div>
         <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
           <span className="uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">{data.type}</span>
           <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
