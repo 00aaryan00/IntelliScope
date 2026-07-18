@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from api.routes import router
+from api.profile_routes import router as profile_router
 
 # This is exactly equivalent to `const app = express()` in Node.js!
 app = FastAPI(title="Tasknova API", description="Backend for the Tasknova AI Dashboard")
@@ -17,6 +18,7 @@ app.add_middleware(
 
 # Register our API endpoints
 app.include_router(router)
+app.include_router(profile_router)
 
 # This is equivalent to `app.get('/health', (req, res) => res.json({...}))`
 @app.get("/health")

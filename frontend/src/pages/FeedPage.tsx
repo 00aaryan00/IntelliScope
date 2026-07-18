@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Filter, ChevronDown } from 'lucide-react';
-import { IntelligenceObjectCard, type IntelligenceType } from '../components/shared/IntelligenceObjectCard';
-import { MOCK_DATA } from '../lib/mockData';
+import { Filter, ChevronDown, Loader2 } from 'lucide-react';
+import { IntelligenceObjectCard, type IntelligenceType, type IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
+import { fetchArticles } from '../lib/api';
 
 interface FeedPageProps {
   title: string;
@@ -21,8 +21,38 @@ const item: any = {
 };
 
 export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
-  const filteredData = MOCK_DATA.filter(data => data.type === typeFilter);
+  const [data, setData] = useState<IntelligenceObjectCardProps[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const articles = await fetchArticles(typeFilter, 0);
+      setData(articles);
+      setHasMore(articles.length === 12);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [typeFilter]);
+
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    const newArticles = await fetchArticles(typeFilter, data.length);
+    setData(prev => [...prev, ...newArticles]);
+    setHasMore(newArticles.length === 12);
+    setIsLoadingMore(false);
+  };
+
+  // Filter AI News to only show highly relevant items
+  let displayData = data;
+  if (typeFilter === 'news') {
+    displayData = displayData.filter(item => (item.personalScore || 0) >= 30);
+  }
+  
+  const filteredData = activeFilter === 'All' ? displayData : displayData; // For the MVP, activeFilter can just be cosmetic or we can add actual frontend filtering later.
 
   const filters = ['All', 'Today', 'High Priority', 'Critical', 'OpenAI', 'Anthropic', 'Funding > $50M'];
 
@@ -58,22 +88,46 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
         </button>
       </div>
 
-      {filteredData.length > 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center items-center py-20 text-blue-600 dark:text-blue-400">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      ) : filteredData.length > 0 ? (
         <motion.div 
           variants={container}
           initial="hidden"
           animate="show"
           className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
         >
-          {filteredData.map((data) => (
-            <motion.div key={data.id} variants={item} className="h-full">
-              <IntelligenceObjectCard {...data} />
+          {filteredData.map((item) => (
+            <motion.div key={item.id} variants={item} className="h-full">
+              <IntelligenceObjectCard {...item} />
             </motion.div>
           ))}
         </motion.div>
       ) : (
         <div className="text-center py-20 text-slate-500">
           No intelligence objects found for this category.
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {hasMore && filteredData.length > 0 && !isLoading && (
+        <div className="flex justify-center pt-8 pb-4">
+          <button
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Loading...
+              </>
+            ) : (
+              'Load More'
+            )}
+          </button>
         </div>
       )}
     </div>

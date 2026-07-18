@@ -1,0 +1,3 @@
+@echo off
+echo Starting Celery Beat (Autopilot Scheduler)...
+.\venv\Scripts\celery -A worker.celery_app beat --loglevel=info

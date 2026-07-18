@@ -1,0 +1,3 @@
+@echo off
+echo Starting Celery Worker...
+.\venv\Scripts\celery -A worker.celery_app worker --loglevel=info --pool=solo

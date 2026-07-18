@@ -1,11 +1,47 @@
 import { 
   Home, Newspaper, Cpu, DollarSign, Briefcase, GraduationCap, Building2, Landmark, Code, Terminal, MessageSquare, Bookmark, Settings, User, Search, Sun, Moon
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { useLocation, NavLink } from "react-router-dom";
 import { useTheme } from "../../lib/ThemeContext";
+import { useState, useEffect } from "react";
+import { getCategoryStats } from "../../lib/api";
 
 export function Sidebar() {
   const { theme, toggleTheme } = useTheme();
+  const [stats, setStats] = useState<Record<string, { total: number, new: number }>>({});
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const data = await getCategoryStats();
+      setStats(data);
+    };
+    fetchStats();
+    
+    // Poll every 60 seconds
+    const interval = setInterval(fetchStats, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const location = useLocation();
+  const [lastSeen, setLastSeen] = useState<Record<string, number>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('category_last_seen') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const category = location.pathname.replace('/', '');
+    if (stats[category] && stats[category].total > 0) {
+      const currentTotal = stats[category].total;
+      if (lastSeen[category] !== currentTotal) {
+        const newLastSeen = { ...lastSeen, [category]: currentTotal };
+        setLastSeen(newLastSeen);
+        localStorage.setItem('category_last_seen', JSON.stringify(newLastSeen));
+      }
+    }
+  }, [location.pathname, stats, lastSeen]);
 
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 p-4 sticky top-0 transition-colors duration-300">
@@ -41,16 +77,16 @@ export function Sidebar() {
         {/* Intelligence Modules Zone */}
         <div>
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-2">Intelligence</p>
-          <NavItem icon={<Newspaper size={18} />} label="AI News" to="/news" />
-          <NavItem icon={<Cpu size={18} />} label="Models & Releases" to="/models" />
-          <NavItem icon={<DollarSign size={18} />} label="Funding" to="/funding" />
-          <NavItem icon={<Briefcase size={18} />} label="VC Intelligence" to="/vc" />
-          <NavItem icon={<GraduationCap size={18} />} label="Research" to="/research" />
-          <NavItem icon={<Landmark size={18} />} label="Government" to="/gov" />
-          <NavItem icon={<Code size={18} />} label="Open Source" to="/opensource" />
-          <NavItem icon={<Terminal size={18} />} label="Dev Ecosystem" to="/dev" />
-          <NavItem icon={<MessageSquare size={18} />} label="Social Intelligence" to="/social" />
-          <NavItem icon={<Building2 size={18} />} label="Business Intel" to="/business" />
+          <NavItem icon={<Newspaper size={18} />} label="AI News" to="/news" stats={stats.news} lastSeenTotal={lastSeen.news} />
+          <NavItem icon={<Cpu size={18} />} label="Models & Releases" to="/models" stats={stats.models} lastSeenTotal={lastSeen.models} />
+          <NavItem icon={<DollarSign size={18} />} label="Funding" to="/funding" stats={stats.funding} lastSeenTotal={lastSeen.funding} />
+          <NavItem icon={<Briefcase size={18} />} label="VC Intelligence" to="/vc" stats={stats.vc} lastSeenTotal={lastSeen.vc} />
+          <NavItem icon={<GraduationCap size={18} />} label="Research" to="/research" stats={stats.research} lastSeenTotal={lastSeen.research} />
+          <NavItem icon={<Landmark size={18} />} label="Government" to="/gov" stats={stats.gov} lastSeenTotal={lastSeen.gov} />
+          <NavItem icon={<Code size={18} />} label="Open Source" to="/opensource" stats={stats.opensource} lastSeenTotal={lastSeen.opensource} />
+          <NavItem icon={<Terminal size={18} />} label="Dev Ecosystem" to="/dev" stats={stats.dev} lastSeenTotal={lastSeen.dev} />
+          <NavItem icon={<MessageSquare size={18} />} label="Social Intelligence" to="/social" stats={stats.social} lastSeenTotal={lastSeen.social} />
+          <NavItem icon={<Building2 size={18} />} label="Business Intel" to="/business" stats={stats.business} lastSeenTotal={lastSeen.business} />
         </div>
 
         {/* Personal Zone */}
@@ -69,14 +105,38 @@ export function Sidebar() {
   );
 }
 
-function NavItem({ icon, label, to }: { icon: React.ReactNode, label: string, to: string }) {
+function NavItem({ icon, label, to, stats, lastSeenTotal }: { icon: React.ReactNode, label: string, to: string, stats?: { total: number, new: number }, lastSeenTotal?: number }) {
+  let unseenCount = 0;
+  if (stats && stats.total > 0) {
+    if (lastSeenTotal !== undefined) {
+      unseenCount = Math.max(0, stats.total - lastSeenTotal);
+    } else {
+      // Fallback to backend 24h count if we've never visited this tab before
+      unseenCount = stats.new;
+    }
+  }
+
   return (
     <NavLink 
       to={to}
-      className={({ isActive }) => `w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm ${isActive ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-500 font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white'}`}
+      className={({ isActive }) => `w-full flex items-center justify-between px-3 py-2 rounded-md transition-colors text-sm ${isActive ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-500 font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white'}`}
     >
-      {icon}
-      {label}
+      <div className="flex items-center gap-3">
+        {icon}
+        {label}
+      </div>
+      {stats && stats.total > 0 && (
+        <div className="flex items-center gap-1.5 ml-2 shrink-0">
+          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 group-hover:text-slate-500">
+            {stats.total}
+          </span>
+          {unseenCount > 0 && (
+            <span className="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800/50 flex items-center justify-center min-w-[28px]">
+              +{unseenCount}
+            </span>
+          )}
+        </div>
+      )}
     </NavLink>
   );
 }

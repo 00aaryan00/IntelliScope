@@ -10,6 +10,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { AuthPage } from './pages/AuthPage'
 import { AlertsPage } from './pages/AlertsPage'
+import { SearchPage } from './pages/SearchPage'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/login" element={<AuthPage />} />
+          <Route path="/search" element={<SearchPage />} />
           
           {/* Core Feeds */}
           <Route path="/news" element={<FeedPage title="AI News" description="Latest updates and breakthroughs." typeFilter="news" />} />

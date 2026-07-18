@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
@@ -15,6 +15,11 @@ class Summary(Base):
     technical_impact = Column(Text)
     business_impact = Column(Text)
     business_relevant = Column(Boolean, default=False)
+    category = Column(String, default="news") # news, research, funding, models, etc
+    entities = Column(JSON, nullable=True)
+    sentiment = Column(String, nullable=True) # positive, negative, neutral
+    action_hint = Column(String, nullable=True) # e.g., 'Monitor', 'Act', 'Ignore'
+    locations = Column(JSON, nullable=True) # Array of countries
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

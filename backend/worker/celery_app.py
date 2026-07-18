@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from core.config import settings
 import os
 import sys
@@ -24,3 +25,17 @@ celery.conf.update(
     # This prevents Celery from failing immediately if Redis takes a second to connect
     broker_connection_retry_on_startup=True
 )
+
+# Setup Celery Beat schedule for automated scraping
+celery.conf.beat_schedule = {
+    "fetch-ai-news-every-hour": {
+        "task": "fetch_ai_news",
+        # Run at minute 0 past every hour
+        "schedule": crontab(minute=0, hour="*"),
+    },
+    "fetch-hacker-news-every-hour": {
+        "task": "fetch_hacker_news",
+        # Run at minute 30 past every hour (staggered to avoid overwhelming the system)
+        "schedule": crontab(minute=30, hour="*"),
+    }
+}

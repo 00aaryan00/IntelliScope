@@ -1,0 +1,3 @@
+@echo off
+echo Starting FastAPI Server...
+.\venv\Scripts\uvicorn main:app --reload

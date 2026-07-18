@@ -1,6 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { getDashboardData } from '../lib/api';
+import { Link } from 'react-router-dom';
 
 export function Dashboard() {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const dashboardData = await getDashboardData();
+      setData(dashboardData);
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[50vh] text-blue-600 dark:text-blue-400">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex justify-center items-center h-[50vh] text-slate-500">
+        Failed to load dashboard data.
+      </div>
+    );
+  }
+
+  // Define colors for the Top 3 articles
+  const borderColors = ["border-blue-600", "border-orange-500", "border-emerald-500"];
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       <header className="flex justify-between items-center mb-8 pr-24">
@@ -19,49 +54,52 @@ export function Dashboard() {
           </div>
           
           <div className="space-y-4">
-            <div className="border-l-2 border-blue-600 pl-4 py-1">
-              <h3 className="font-medium text-slate-800 dark:text-slate-200">OpenAI releases advanced reasoning model</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">The new o1 model demonstrates significant improvements in coding and math. Highly relevant for Viorant's agent development.</p>
-            </div>
-            
-            <div className="border-l-2 border-orange-500 pl-4 py-1">
-              <h3 className="font-medium text-slate-800 dark:text-slate-200">CoreWeave secures $1.1B in fresh funding</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Valuation hits $19B. Signals massive continued demand for compute infrastructure in the AI sector.</p>
-            </div>
-
-            <div className="border-l-2 border-slate-300 dark:border-slate-700 pl-4 py-1">
-              <h3 className="font-medium text-slate-800 dark:text-slate-200">New EU AI Act guidelines published</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Compliance requirements for open-source models clarified. Minimal impact expected for current deployments.</p>
-            </div>
+            {data.brief.map((article: any, index: number) => (
+              <Link to={`/detail/${article.id}`} key={article.id} className="block group">
+                <div className={`border-l-2 ${borderColors[index] || 'border-slate-300'} pl-4 py-1 transition-colors group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 rounded-r-md`}>
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-medium text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">{article.title}</h3>
+                    {article.score > 0 && (
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded ml-2 whitespace-nowrap">Score: {article.score}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{article.summary}</p>
+                </div>
+              </Link>
+            ))}
+            {data.brief.length === 0 && (
+              <p className="text-sm text-slate-500">No highly relevant articles found today.</p>
+            )}
           </div>
         </div>
 
         {/* Market Pulse Widget */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Market Pulse</h2>
           
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-500 dark:text-slate-400">Total Funding (24h)</span>
-              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">+$1.4B</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">New Funding Deals (24h)</span>
+              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">+{data.pulse.fundingDeals}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-500 dark:text-slate-400">New Papers</span>
-              <span className="text-sm font-medium text-slate-900 dark:text-white">1,243</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">New Papers (24h)</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-white">+{data.pulse.newPapers}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-500 dark:text-slate-400">Model Releases</span>
-              <span className="text-sm font-medium text-slate-900 dark:text-white">4</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">Model Releases (24h)</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-white">+{data.pulse.modelReleases}</span>
             </div>
           </div>
 
-          <div className="mt-8">
-            <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3">Trending Topics</h3>
+          <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3">Your Focus Areas</h3>
             <div className="flex flex-wrap gap-2">
-              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-xs rounded text-slate-600 dark:text-slate-300">Agents</span>
-              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-xs rounded text-slate-600 dark:text-slate-300">RAG</span>
-              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-xs rounded text-slate-600 dark:text-slate-300">Robotics</span>
-              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-xs rounded text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">Viorant Focus</span>
+              {data.trending.map((tag: string) => (
+                <span key={tag} className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-xs rounded text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
         </div>

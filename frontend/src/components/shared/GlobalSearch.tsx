@@ -29,15 +29,15 @@ export function GlobalSearch() {
     };
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
+  const handleSearch = (e?: React.FormEvent, presetQuery?: string) => {
+    if (e) e.preventDefault();
+    const searchQuery = presetQuery || query;
+    
+    if (searchQuery.trim()) {
       setIsOpen(false);
-      // In a real app, this would route to a search results page
-      navigate('/news'); 
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`); 
     }
   };
-
   return (
     <>
       {/* Floating Mobile Trigger */}
@@ -91,15 +91,15 @@ export function GlobalSearch() {
                 </div>
                 
                 <div className="space-y-1">
-                  <button type="button" onClick={() => setIsOpen(false)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
+                  <button type="button" onClick={() => handleSearch(undefined, "Which AI startups raised over $50M this week?")} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
                     <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"Which AI startups raised over $50M this week?"</span>
                     <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4" />
                   </button>
-                  <button type="button" onClick={() => setIsOpen(false)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
+                  <button type="button" onClick={() => handleSearch(undefined, "Summarize the latest Arxiv papers on LLM agents")} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
                     <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"Summarize the latest Arxiv papers on LLM agents"</span>
                     <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4" />
                   </button>
-                  <button type="button" onClick={() => setIsOpen(false)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
+                  <button type="button" onClick={() => handleSearch(undefined, "What are competitors doing in the RAG space?")} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
                     <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"What are competitors doing in the RAG space?"</span>
                     <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4" />
                   </button>

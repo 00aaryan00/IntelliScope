@@ -20,9 +20,12 @@ class Settings:
     # APIs
     NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
     NEWS_API_BASE = os.getenv("NEWS_API_BASE")
+    HACKERNEWS_API_BASE = os.getenv("HACKERNEWS_API_BASE")
 
     # AI
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # We export a single instance of settings so we don't have to call os.getenv everywhere.
 # This makes our code much cleaner and less prone to typos.
