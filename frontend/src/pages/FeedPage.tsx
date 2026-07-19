@@ -15,7 +15,7 @@ const container: any = {
   show: { opacity: 1, transition: { staggerChildren: 0.1 } }
 };
 
-const item: any = {
+const itemVariant: any = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
@@ -46,7 +46,7 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
     setIsLoadingMore(false);
   };
 
-  // Filter AI News to only show highly relevant items
+  // Filter News to only show highly relevant items
   let displayData = data;
   if (typeFilter === 'news') {
     displayData = displayData.filter(item => (item.personalScore || 0) >= 30);
@@ -100,7 +100,7 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
           className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
         >
           {filteredData.map((item) => (
-            <motion.div key={item.id} variants={item} className="h-full">
+            <motion.div key={item.id} variants={itemVariant} className="h-full">
               <IntelligenceObjectCard {...item} />
             </motion.div>
           ))}

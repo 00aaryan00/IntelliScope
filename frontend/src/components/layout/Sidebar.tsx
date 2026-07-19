@@ -1,5 +1,5 @@
 import { 
-  Home, Newspaper, Cpu, DollarSign, Briefcase, GraduationCap, Building2, Landmark, Code, Terminal, MessageSquare, Bookmark, Settings, User, Search, Sun, Moon
+  Home, Newspaper, Cpu, DollarSign, Briefcase, GraduationCap, Building2, Landmark, Code, Terminal, MessageSquare, Bookmark, Settings, User, Search, Sun, Moon, RefreshCw, Activity
 } from "lucide-react";
 import { useLocation, NavLink } from "react-router-dom";
 import { useTheme } from "../../lib/ThemeContext";
@@ -77,7 +77,7 @@ export function Sidebar() {
         {/* Intelligence Modules Zone */}
         <div>
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-2">Intelligence</p>
-          <NavItem icon={<Newspaper size={18} />} label="AI News" to="/news" stats={stats.news} lastSeenTotal={lastSeen.news} />
+          <NavItem icon={<Newspaper size={18} />} label="News" to="/news" stats={stats.news} lastSeenTotal={lastSeen.news} />
           <NavItem icon={<Cpu size={18} />} label="Models & Releases" to="/models" stats={stats.models} lastSeenTotal={lastSeen.models} />
           <NavItem icon={<DollarSign size={18} />} label="Funding" to="/funding" stats={stats.funding} lastSeenTotal={lastSeen.funding} />
           <NavItem icon={<Briefcase size={18} />} label="VC Intelligence" to="/vc" stats={stats.vc} lastSeenTotal={lastSeen.vc} />
@@ -96,9 +96,26 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* System Zone */}
+    {/* System Zone */}
       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 mt-4 space-y-1">
+        <button 
+          onClick={async () => {
+            const btn = document.getElementById('sidebar-refresh-btn');
+            if (btn) btn.innerHTML = 'Refreshing...';
+            try {
+              await fetch('http://localhost:8000/api/refresh', { method: 'POST' });
+              window.location.reload();
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white"
+        >
+          <RefreshCw size={18} />
+          <span id="sidebar-refresh-btn">Force Refresh Data</span>
+        </button>
         <NavItem icon={<Settings size={18} />} label="Settings" to="/settings" />
+        <NavItem icon={<Activity size={18} />} label="System Health" to="/health" />
         <NavItem icon={<User size={18} />} label="Profile" to="/profile" />
       </div>
     </aside>
