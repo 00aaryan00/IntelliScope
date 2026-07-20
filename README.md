@@ -51,8 +51,11 @@ The backend relies on FastAPI and Celery.
    # Redis Connection for Celery
    REDIS_URL=redis://localhost:6379/0
 
-   # Google Gemini API Key
+   # Google Gemini API Key (Used for generating mathematical vector embeddings)
    GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Groq API Key (Used for generating ultra-fast LLM article summaries)
+   GROQ_API_KEY=your_groq_api_key_here
    ```
 
 5. **Database Initialization:**
@@ -65,7 +68,7 @@ The backend relies on FastAPI and Celery.
 
 ## 2. Running the Application (Windows)
 
-The application requires multiple processes to run simultaneously. You should open **4 separate terminal windows**.
+The application requires multiple processes to run simultaneously. You should open **3 separate terminal windows**.
 
 ### Terminal 1: The Backend API (FastAPI)
 This runs the main web server that serves the frontend.
@@ -76,7 +79,7 @@ cd backend
 ```
 
 ### Terminal 2: Celery Worker
-This background worker executes the web scraping and calls the Gemini API to generate summaries. It requires Redis to be running.
+This background worker executes the web scraping and calls the AI APIs to generate summaries. It requires Redis to be running.
 ```bash
 cd backend
 .\start_worker.bat 
@@ -84,7 +87,7 @@ cd backend
 ```
 
 ### Terminal 3: Celery Beat (Scheduler)
-This scheduler triggers the periodic scraping jobs (e.g., fetching new articles every hour).
+**Important for Windows Users:** Windows does not support running the Celery Worker and Celery Beat in the same terminal. You MUST run the scheduler as a completely separate process in a new terminal window! This scheduler triggers the scrapers to run automatically every 15 minutes.
 ```bash
 cd backend
 .\venv\Scripts\celery -A worker.celery_app beat --loglevel=info

@@ -3,13 +3,27 @@ import { useLocation, Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { GlobalSearch } from '../shared/GlobalSearch';
+import { SystemHealthToaster } from '../shared/SystemHealthToaster';
 import { useTheme } from '../../lib/ThemeContext';
 import { Sun, Moon, Bell } from 'lucide-react';
+import { useAuth } from '../auth/AuthWrapper';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const isAuth = location.pathname === '/login';
+  const isAuth = location.pathname === '/login' || location.pathname === '/onboarding';
   const { theme, toggleTheme } = useTheme();
+  const { session } = useAuth();
+  
+  const getAvatarUrl = () => {
+    const rawSeed = session?.user?.email || 'default';
+    const seed = encodeURIComponent(rawSeed);
+    const avatarGender = localStorage.getItem('avatar_gender') || 'neutral';
+    
+    if (avatarGender === 'male') return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}-m&backgroundColor=b6e3f4`;
+    if (avatarGender === 'female') return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}-f&backgroundColor=ffdfbf`;
+    
+    return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=b6e3f4`;
+  };
 
   if (isAuth) {
     return (
@@ -32,13 +46,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+            <Link to="/profile">
+              <img src={getAvatarUrl()} alt="User Avatar" className="w-full h-full object-cover" />
+            </Link>
           </div>
         </div>
         {children}
       </main>
       <BottomNav />
       <GlobalSearch />
+      <SystemHealthToaster />
     </div>
   );
 }

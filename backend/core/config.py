@@ -21,6 +21,12 @@ class Settings:
     NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
     NEWS_API_BASE = os.getenv("NEWS_API_BASE")
     HACKERNEWS_API_BASE = os.getenv("HACKERNEWS_API_BASE")
+    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+    GITHUB_API_BASE = os.getenv("GITHUB_API_BASE", "https://api.github.com")
+    ARXIV_API_BASE = os.getenv("ARXIV_API_BASE", "http://export.arxiv.org/api")
+    HUGGINGFACE_API_BASE = os.getenv("HUGGINGFACE_API_BASE", "https://huggingface.co/api")
+    OPENALEX_API_BASE = os.getenv("OPENALEX_API_BASE", "https://api.openalex.org")
+    OPENALEX_EMAIL = os.getenv("OPENALEX_EMAIL", "")
 
     # AI
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

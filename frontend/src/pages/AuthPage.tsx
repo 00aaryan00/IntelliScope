@@ -1,16 +1,52 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BrainCircuit, Mail, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, BrainCircuit, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/auth/AuthWrapper';
 
 export function AuthPage() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  
+  const { session } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  if (session) {
+    if (localStorage.getItem('just_signed_up') === 'true') {
+      // Do not remove it during render phase, otherwise React Strict Mode double-render will break the redirect!
+      return <Navigate to="/onboarding" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login and go back to dashboard
-    navigate('/');
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setError(error.message);
+    } else {
+      localStorage.setItem('just_signed_up', 'true');
+      const { error, data } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        localStorage.removeItem('just_signed_up');
+        setError(error.message);
+      } else if (data?.user?.identities?.length === 0) {
+        localStorage.removeItem('just_signed_up');
+        setError("This email is already registered. Please log in.");
+      } else {
+        setMessage("Success! If you used a new email, please check your inbox for a confirmation link. If you disabled confirmations in Supabase, you can now log in.");
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -45,17 +81,21 @@ export function AuthPage() {
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Email Address</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <input type="email" required className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors" placeholder="you@example.com" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors" placeholder="you@example.com" />
             </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Password</label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <input type="password" required className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" />
             </div>
           </div>
-          <button type="submit" className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 dark:shadow-blue-900/20 transition-colors mt-4">
+
+          {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-start gap-2"><AlertCircle size={16} className="mt-0.5 shrink-0" />{error}</div>}
+          {message && <div className="p-3 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-sm rounded-lg">{message}</div>}
+
+          <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 dark:shadow-blue-900/20 transition-colors mt-4">
             {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>

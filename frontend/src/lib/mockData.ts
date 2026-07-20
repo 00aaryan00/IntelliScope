@@ -19,7 +19,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     source: "Anthropic",
     timeAgo: "4 hours ago",
     aiSummary: "The new model can perceive and interact with computer interfaces directly, moving the cursor, clicking, and typing text.",
-    businessImpact: "Direct competitor to our core technology.",
+    businessImpact: "Tracked organization to our core technology.",
     impactLevel: "high"
   },
 
@@ -143,7 +143,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     source: "WSJ",
     timeAgo: "1 day ago",
     aiSummary: "Salesforce's new 'Einstein Copilot' can autonomously execute multi-step sales workflows.",
-    businessImpact: "Enterprise competitors are moving fast into the agent space.",
+    businessImpact: "Enterprise tracked organizations are moving fast into the agent space.",
     impactLevel: "medium"
   }
 ];

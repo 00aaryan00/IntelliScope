@@ -23,7 +23,12 @@ celery.conf.update(
     timezone="UTC",
     enable_utc=True,
     # This prevents Celery from failing immediately if Redis takes a second to connect
-    broker_connection_retry_on_startup=True
+    broker_connection_retry_on_startup=True,
+    # Upstash Redis Free Tier fixes: prevents server from dropping idle pool connections
+    broker_pool_limit=None,
+    broker_transport_options={
+        'visibility_timeout': 3600,
+    }
 )
 
 # Setup Celery Beat schedule for automated scraping
@@ -37,5 +42,21 @@ celery.conf.beat_schedule = {
         "task": "fetch_hacker_news",
         # Run at minute 30 past every hour (staggered to avoid overwhelming the system)
         "schedule": crontab(minute=30, hour="*"),
+    },
+    "fetch-arxiv-papers-every-two-hours": {
+        "task": "fetch_arxiv_papers",
+        "schedule": crontab(minute=15, hour="*/2"),
+    },
+    "fetch-github-trending-every-hour": {
+        "task": "fetch_github_trending",
+        "schedule": crontab(minute=45, hour="*"),
+    },
+    "fetch-huggingface-models-every-hour": {
+        "task": "fetch_huggingface_models",
+        "schedule": crontab(minute=10, hour="*"),
+    },
+    "fetch-openalex-research-every-two-hours": {
+        "task": "fetch_openalex_research",
+        "schedule": crontab(minute=25, hour="*/2"),
     }
 }

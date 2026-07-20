@@ -28,7 +28,7 @@ class BusinessEntity(Base):
     
     name = Column(String)
     description = Column(String, nullable=True)
-    competitors = Column(JSON, default=list)
+    tracked_organizations = Column(JSON, default=list)
     target_sectors = Column(JSON, default=list)
     
     profile = relationship("InterestProfile", back_populates="entities")

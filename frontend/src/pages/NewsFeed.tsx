@@ -20,7 +20,7 @@ export const MOCK_DATA: IntelligenceObjectCardProps[] = [
     source: "Anthropic",
     timeAgo: "5 hours ago",
     aiSummary: "The new model can perceive and interact with computer interfaces directly, moving the cursor, clicking, and typing text just like a human user.",
-    businessImpact: "Direct competitor to our core technology. We need to evaluate their agentic capabilities against our proprietary framework.",
+    businessImpact: "Tracked organization to our core technology. We need to evaluate their agentic capabilities against our proprietary framework.",
     impactLevel: "high"
   },
   {

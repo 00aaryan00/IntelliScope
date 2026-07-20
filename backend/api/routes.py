@@ -5,20 +5,39 @@ from db.session import SessionLocal
 from models.article import ProcessedArticle
 from models.intelligence import Summary, Embedding
 from models.user_profile import User, UserArticleScore
+from api.auth import get_current_user
+from models.system import SystemHealth
 from services.ai_service import generate_embedding
 
 # This is equivalent to `express.Router()`
 router = APIRouter()
 
-from worker.tasks import fetch_ai_news, fetch_hacker_news, process_raw_articles
+from worker.tasks import fetch_ai_news, fetch_hacker_news, process_raw_articles, fetch_arxiv_papers, fetch_github_trending, fetch_huggingface_models, fetch_openalex_research
+import time
+
+# Global in-memory caches (user_id -> {"expires": timestamp, "data": data})
+dashboard_cache = {}
+alerts_cache = {}
+stats_cache = {}
+
+# Global cache for heavy O(N^2) calculations (independent of user)
+trending_events_cache = {"expires": 0, "data": []}
 
 @router.post("/api/refresh")
 def refresh_articles():
     """
     Manually triggers the background worker to fetch and process new articles.
     """
+    dashboard_cache.clear()
+    alerts_cache.clear()
+    stats_cache.clear()
+    
     fetch_ai_news.delay()
     fetch_hacker_news.delay()
+    fetch_arxiv_papers.delay()
+    fetch_github_trending.delay()
+    fetch_huggingface_models.delay()
+    fetch_openalex_research.delay()
     return {"message": "Started fetching and processing new articles from all sources in the background!"}
 
 @router.post("/api/process_queue")
@@ -41,48 +60,56 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 @router.get("/api/stats/categories")
-def get_category_stats(db: Session = Depends(get_db)):
+def get_category_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Returns the total count and new count (last 24h) for each category.
     """
+    user_id = current_user.id if current_user else None
+    
+    # Check cache
+    if user_id in stats_cache and time.time() < stats_cache[user_id]["expires"]:
+        return stats_cache[user_id]["data"]
+        
     try:
-        # Get current time and 24 hours ago
         now = datetime.utcnow()
         twenty_four_hours_ago = now - timedelta(days=1)
         
-        # Query all summaries with their article creation time and user score
-        user = db.query(User).first()
-        user_id = user.id if user else None
+        user = current_user
+
+        from sqlalchemy import case, or_, and_, func
 
         results = (
-            db.query(Summary.category, ProcessedArticle.created_at, UserArticleScore.personal_relevance_score)
+            db.query(
+                Summary.category,
+                func.count().label('total'),
+                func.sum(case((ProcessedArticle.created_at >= twenty_four_hours_ago, 1), else_=0)).label('new_count')
+            )
             .join(ProcessedArticle, Summary.processed_article_id == ProcessedArticle.id)
             .outerjoin(UserArticleScore, (ProcessedArticle.id == UserArticleScore.processed_article_id) & (UserArticleScore.user_id == user_id))
+            .filter(
+                ~and_(
+                    Summary.category == 'news',
+                    or_(
+                        UserArticleScore.personal_relevance_score == None,
+                        UserArticleScore.personal_relevance_score < 30
+                    )
+                )
+            )
+            .group_by(Summary.category)
             .all()
         )
         
         stats = {}
-        for category, created_at, score in results:
-            if category == 'news' and (score is None or score < 30):
-                continue
-
-            if category not in stats:
-                stats[category] = {"total": 0, "new": 0}
-                
-            stats[category]["total"] += 1
+        for category, total, new_count in results:
+            stats[category] = {
+                "total": total,
+                "new": new_count if new_count else 0
+            }
             
-            # Use tz-naive comparison if created_at is naive, or convert if timezone-aware
-            if created_at:
-                # If postgres returns timezone-aware datetime, convert `now` to aware
-                if created_at.tzinfo is not None:
-                    from datetime import timezone
-                    cutoff = datetime.now(timezone.utc) - timedelta(days=1)
-                    if created_at >= cutoff:
-                        stats[category]["new"] += 1
-                else:
-                    if created_at >= twenty_four_hours_ago:
-                        stats[category]["new"] += 1
-                        
+        stats_cache[user_id] = {
+            "data": stats,
+            "expires": time.time() + 300
+        }
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -100,10 +127,14 @@ def cosine_similarity(v1, v2):
     return dot_product / (magnitude1 * magnitude2)
 
 @router.get("/api/dashboard")
-def get_dashboard_data(db: Session = Depends(get_db)):
+def get_dashboard_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_id = current_user.id if current_user else None
+
+    if user_id in dashboard_cache and time.time() < dashboard_cache[user_id]["expires"]:
+        return dashboard_cache[user_id]["data"]
+        
     try:
-        user = db.query(User).first()
-        user_id = user.id if user else None
+        user = current_user
         
         # 1. Today's AI Brief: Top 3 articles by personal score
         brief_query = (
@@ -154,68 +185,81 @@ def get_dashboard_data(db: Session = Depends(get_db)):
         trending = profile.focus_tags if profile and profile.focus_tags else ["AI", "Startups", "Technology"]
         
         # 4. Semantic Clustering: Find trending events in last 48h
-        forty_eight_hours_ago = now - timedelta(days=2)
-        articles_with_embeddings = (
-            db.query(ProcessedArticle, Embedding)
-            .join(Embedding, ProcessedArticle.id == Embedding.processed_article_id)
-            .filter(ProcessedArticle.created_at >= forty_eight_hours_ago)
-            .order_by(desc(ProcessedArticle.created_at))
-            .all()
-        )
-        
-        clusters = []
-        visited = set()
-        
-        for i, (art1, emb1) in enumerate(articles_with_embeddings):
-            if i in visited:
-                continue
+        # Use a global cache to avoid running O(N^2) math for every user connection
+        global trending_events_cache
+        if time.time() > trending_events_cache["expires"]:
+            forty_eight_hours_ago = now - timedelta(days=2)
+            articles_with_embeddings = (
+                db.query(ProcessedArticle, Embedding)
+                .join(Embedding, ProcessedArticle.id == Embedding.processed_article_id)
+                .filter(ProcessedArticle.created_at >= forty_eight_hours_ago)
+                .order_by(desc(ProcessedArticle.created_at))
+                .limit(50) # Limit to 50 articles to bound O(N^2) calculations (max 2500 iterations instead of millions)
+                .all()
+            )
             
-            current_cluster = [art1]
-            visited.add(i)
+            clusters = []
+            visited = set()
             
-            for j, (art2, emb2) in enumerate(articles_with_embeddings):
-                if j in visited:
+            for i, (art1, emb1) in enumerate(articles_with_embeddings):
+                if i in visited:
                     continue
-                # If embeddings are highly similar, they are the same event
-                sim = cosine_similarity(emb1.embedding, emb2.embedding)
-                if sim > 0.85:
-                    current_cluster.append(art2)
-                    visited.add(j)
-                    
-            if len(current_cluster) > 1:
-                clusters.append(current_cluster)
-        
-        # Format clusters for frontend
-        trending_events = []
-        for cluster in clusters:
-            lead_article = cluster[0]
-            sources = list(set([a.author for a in cluster if a.author] + [lead_article.raw_article.url.split('/')[2] if lead_article.raw_article else "Web"]))
-            trending_events.append({
-                "id": str(lead_article.id),
-                "title": lead_article.title,
-                "sources": sources,
-                "articleCount": len(cluster)
-            })
+                
+                current_cluster = [art1]
+                visited.add(i)
+                
+                for j, (art2, emb2) in enumerate(articles_with_embeddings):
+                    if j in visited:
+                        continue
+                    # If embeddings are highly similar, they are the same event
+                    sim = cosine_similarity(emb1.embedding, emb2.embedding)
+                    if sim > 0.85:
+                        current_cluster.append(art2)
+                        visited.add(j)
+                        
+                if len(current_cluster) > 1:
+                    clusters.append(current_cluster)
             
-        # Sort by most articles in cluster
-        trending_events.sort(key=lambda x: x["articleCount"], reverse=True)
+            # Format clusters for frontend
+            trending_events = []
+            for cluster in clusters:
+                lead_article = cluster[0]
+                sources = list(set([a.author for a in cluster if a.author] + [lead_article.raw_article.url.split('/')[2] if lead_article.raw_article else "Web"]))
+                trending_events.append({
+                    "id": str(lead_article.id),
+                    "title": lead_article.title,
+                    "sources": sources,
+                    "articleCount": len(cluster)
+                })
+                
+            # Sort by most articles in cluster
+            trending_events.sort(key=lambda x: x["articleCount"], reverse=True)
+            
+            trending_events_cache["data"] = trending_events[:3]
+            trending_events_cache["expires"] = time.time() + 600 # Cache for 10 minutes
         
-        return {
+        response_data = {
             "brief": brief,
             "pulse": pulse,
             "trending": trending,
-            "trending_events": trending_events[:3] # Return top 3 clusters
+            "trending_events": trending_events_cache["data"]
         }
+        
+        dashboard_cache[user_id] = {
+            "data": response_data,
+            "expires": time.time() + 300
+        }
+        return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/articles")
-def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12, db: Session = Depends(get_db)):
+def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Fetches the most recent processed articles along with their AI summaries.
     """
     try:
-        user = db.query(User).first()
+        user = current_user
         user_id = user.id if user else None
 
         query = (
@@ -226,6 +270,13 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
         
         if category and category != 'all':
             query = query.filter(Summary.category == category)
+            
+        # For 'news' specifically, filter out low-relevance items to match the sidebar stats and prevent empty pages
+        if category == 'news':
+            query = query.filter(
+                UserArticleScore.personal_relevance_score != None,
+                UserArticleScore.personal_relevance_score >= 30
+            )
             
         results = query.order_by(
             func.date(ProcessedArticle.published_date).desc(), 
@@ -297,7 +348,7 @@ def search_articles(q: str = Query(..., description="The semantic search query")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/articles/{article_id}")
-def get_article_by_id(article_id: int, db: Session = Depends(get_db)):
+def get_article_by_id(article_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Fetches a single article by ID along with its full content and AI summary.
     """
@@ -331,7 +382,7 @@ def get_article_by_id(article_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/articles/{article_id}/similar")
-def get_similar_articles(article_id: int, db: Session = Depends(get_db)):
+def get_similar_articles(article_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Finds the top 2 most semantically similar articles using pgvector.
     """
@@ -375,15 +426,19 @@ def get_similar_articles(article_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/alerts")
-def get_alerts(db: Session = Depends(get_db)):
+def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Fetches high-impact alerts: 
     1. Articles with score >= 80 in last 48h
     2. Trending events (clusters >= 3) in last 48h
     """
+    user_id = current_user.id if current_user else None
+
+    if user_id in alerts_cache and time.time() < alerts_cache[user_id]["expires"]:
+        return alerts_cache[user_id]["data"]
+        
     try:
-        user = db.query(User).first()
-        user_id = user.id if user else None
+        user = current_user
         
         now = datetime.utcnow()
         if now.tzinfo is not None:
@@ -454,6 +509,30 @@ def get_alerts(db: Session = Depends(get_db)):
         # Sort combined alerts by recency
         alerts.sort(key=lambda x: x["timestamp"], reverse=True)
         
+        alerts_cache[user_id] = {
+            "data": alerts,
+            "expires": time.time() + 300
+        }
         return alerts
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/system/health")
+def get_system_health(db: Session = Depends(get_db)):
+    """
+    Returns the latest health status of all system components.
+    """
+    try:
+        health_records = db.query(SystemHealth).all()
+        return [
+            {
+                "component_name": record.component_name,
+                "status": record.status,
+                "message": record.message,
+                "metrics": record.metrics,
+                "last_run": record.last_run.isoformat() if record.last_run else None
+            }
+            for record in health_records
+        ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

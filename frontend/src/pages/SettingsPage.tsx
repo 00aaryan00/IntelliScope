@@ -12,9 +12,12 @@ export function SettingsPage() {
   const [newLocation, setNewLocation] = useState('');
   const [newTrackedOrg, setNewTrackedOrg] = useState('');
   const [newTargetSector, setNewTargetSector] = useState('');
+  const [avatarGender, setAvatarGender] = useState<'male' | 'female' | 'neutral'>('neutral');
 
   useEffect(() => {
     loadProfile();
+    const savedGender = localStorage.getItem('avatar_gender') as any;
+    if (savedGender) setAvatarGender(savedGender);
   }, []);
 
   const loadProfile = async () => {
@@ -27,10 +30,14 @@ export function SettingsPage() {
   const handleSave = async () => {
     if (!profile) return;
     setIsSaving(true);
+    
+    localStorage.setItem('avatar_gender', avatarGender);
+    
     const success = await updateProfile(profile);
     setIsSaving(false);
     if (success) {
       alert("Settings saved successfully! New articles will be scored against these updated keywords.");
+      window.location.reload(); // Reload to update avatar in header immediately
     } else {
       alert("Failed to save settings.");
     }
@@ -80,11 +87,11 @@ export function SettingsPage() {
   const addTrackedOrg = (entityIndex: number) => {
     if (newTrackedOrg.trim() && profile) {
       const newEntities = [...profile.entities];
-      const currentOrgs = newEntities[entityIndex].competitors || [];
+      const currentOrgs = newEntities[entityIndex].tracked_organizations || [];
       if (!currentOrgs.includes(newTrackedOrg.trim())) {
         newEntities[entityIndex] = {
           ...newEntities[entityIndex],
-          competitors: [...currentOrgs, newTrackedOrg.trim()]
+          tracked_organizations: [...currentOrgs, newTrackedOrg.trim()]
         };
         setProfile({ ...profile, entities: newEntities });
         setNewTrackedOrg('');
@@ -97,7 +104,7 @@ export function SettingsPage() {
       const newEntities = [...profile.entities];
       newEntities[entityIndex] = {
         ...newEntities[entityIndex],
-        competitors: newEntities[entityIndex].competitors.filter(c => c !== orgToRemove)
+        tracked_organizations: newEntities[entityIndex].tracked_organizations.filter(c => c !== orgToRemove)
       };
       setProfile({ ...profile, entities: newEntities });
     }
@@ -155,6 +162,21 @@ export function SettingsPage() {
       </header>
 
       <div className="grid gap-6">
+        {/* Avatar Style */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+            <h2 className="font-semibold text-slate-900 dark:text-white">Avatar Style</h2>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Choose the style for your profile picture in the top right corner.</p>
+            <div className="grid grid-cols-3 gap-3 max-w-sm">
+              <button onClick={() => setAvatarGender('male')} className={`py-2 rounded-lg border font-medium text-sm ${avatarGender === 'male' ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}>Male</button>
+              <button onClick={() => setAvatarGender('female')} className={`py-2 rounded-lg border font-medium text-sm ${avatarGender === 'female' ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}>Female</button>
+              <button onClick={() => setAvatarGender('neutral')} className={`py-2 rounded-lg border font-medium text-sm ${avatarGender === 'neutral' ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}>Neutral</button>
+            </div>
+          </div>
+        </div>
+
         {/* Personal Interest Tags */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
@@ -166,7 +188,7 @@ export function SettingsPage() {
               Add keywords you personally care about. Articles mentioning these will make up to 15% of the total relevance score.
             </p>
             <div className="flex flex-wrap gap-2 mb-4">
-              {profile?.focus_tags.map(tag => (
+              {(profile?.focus_tags || []).map(tag => (
                 <div key={tag} className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-full text-sm border border-slate-200 dark:border-slate-700">
                   {tag}
                   <button onClick={() => removeTag(tag)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"><X size={14} /></button>
@@ -233,7 +255,7 @@ export function SettingsPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
               Articles matching tracked organizations make up 45% of the score. Articles matching target sectors make up 30% of the score.
             </p>
-            {profile?.entities.map((entity, index) => (
+            {(profile?.entities || []).map((entity, index) => (
               <div key={index} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Company Name</label>
@@ -242,7 +264,7 @@ export function SettingsPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Tracked Organizations</label>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {entity.competitors.map(comp => (
+                    {(entity.tracked_organizations || []).map(comp => (
                        <div key={comp} className="flex items-center gap-1 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-md text-sm border border-slate-200 dark:border-slate-700 shadow-sm">
                          {comp}
                          <button onClick={() => removeTrackedOrg(index, comp)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"><X size={14} /></button>
@@ -266,7 +288,7 @@ export function SettingsPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target Sectors</label>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {entity.target_sectors.map(sector => (
+                    {(entity.target_sectors || []).map(sector => (
                        <div key={sector} className="flex items-center gap-1 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-md text-sm border border-slate-200 dark:border-slate-700 shadow-sm">
                          {sector}
                          <button onClick={() => removeTargetSector(index, sector)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"><X size={14} /></button>

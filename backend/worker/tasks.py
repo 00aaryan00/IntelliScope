@@ -10,14 +10,43 @@ from models.intelligence import Summary, Embedding
 from models.user_profile import User, InterestProfile, BusinessEntity, UserArticleScore
 from services.ai_service import analyze_article, generate_embedding
 import dateutil.parser
+from models.system import SystemHealth
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import func
+
+def update_health_status(component: str, status: str, message: str = None, metrics: dict = None):
+    db = SessionLocal()
+    try:
+        stmt = insert(SystemHealth).values(
+            component_name=component,
+            status=status,
+            message=message,
+            metrics=metrics
+        ).on_conflict_do_update(
+            index_elements=['component_name'],
+            set_={
+                'status': status,
+                'message': message,
+                'metrics': metrics,
+                'last_run': func.now()
+            }
+        )
+        db.execute(stmt)
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Could not update system health for {component}: {e}")
+    finally:
+        db.close()
 
 # This decorator is like defining a queue worker function in BullMQ.
 @celery.task(name="fetch_ai_news")
 def fetch_ai_news():
     print("[TASK] Starting fetch_ai_news task...")
+    update_health_status("NewsAPI", "running", "Fetching latest AI news...")
     
     if not settings.NEWSAPI_KEY:
         print("[ERROR] Error: No NEWSAPI_KEY found.")
+        update_health_status("NewsAPI", "error", "No NEWSAPI_KEY found")
         return
         
     url = f"{settings.NEWS_API_BASE}/everything"
@@ -34,6 +63,7 @@ def fetch_ai_news():
     
     if response.status_code != 200:
         print(f"[ERROR] Failed to fetch news: {response.text}")
+        update_health_status("NewsAPI", "error", f"API Error: {response.text}")
         return
         
     data = response.json()
@@ -83,14 +113,22 @@ def fetch_ai_news():
         print(f"[LINK] Triggering process_raw_articles task...")
         process_raw_articles.delay()
         
+    update_health_status(
+        "NewsAPI", 
+        "healthy", 
+        f"Processed {len(articles)} articles, saved {saved_count}.",
+        metrics={"Fetched": len(articles), "Saved": saved_count}
+    )
     return f"Processed {len(articles)} articles, saved {saved_count}."
 
 @celery.task(name="fetch_hacker_news")
 def fetch_hacker_news():
     print("[TASK] Starting fetch_hacker_news task...")
+    update_health_status("HackerNews", "running", "Fetching top stories...")
     
     if not settings.HACKERNEWS_API_BASE:
         print("[ERROR] Error: No HACKERNEWS_API_BASE found.")
+        update_health_status("HackerNews", "error", "No HACKERNEWS_API_BASE found")
         return
         
     print(f"[NETWORK] Fetching from HackerNews...")
@@ -98,6 +136,7 @@ def fetch_hacker_news():
     
     if response.status_code != 200:
         print(f"[ERROR] Failed to fetch HN top stories: {response.text}")
+        update_health_status("HackerNews", "error", f"API Error: {response.text}")
         return
         
     story_ids = response.json()[:5] # Just top 5 for now
@@ -152,12 +191,19 @@ def fetch_hacker_news():
         print(f"[LINK] Triggering process_raw_articles task...")
         process_raw_articles.delay()
         
-    return f"Processed {len(story_ids)} HN stories, saved {saved_count}."
+    update_health_status(
+        "HackerNews", 
+        "healthy", 
+        f"Processed {len(story_ids[:5])} HN stories, saved {saved_count}.",
+        metrics={"Fetched": len(story_ids[:5]), "Saved": saved_count}
+    )
+    return f"Processed {len(story_ids[:5])} HN stories, saved {saved_count}."
 
 
 @celery.task(name="process_raw_articles")
 def process_raw_articles():
     print("[TASK] Starting AI processing of raw articles...")
+    update_health_status("AI Engine", "running", "Processing raw articles...")
     db = SessionLocal()
     
     try:
@@ -168,6 +214,7 @@ def process_raw_articles():
         
         if not unprocessed:
             print("[INFO] No new articles to process!")
+            update_health_status("AI Engine", "healthy", "No new articles to process")
             return "No new articles."
             
         print(f"[SEARCH] Found {len(unprocessed)} unprocessed articles. Sending to Gemini...")
@@ -245,11 +292,49 @@ def process_raw_articles():
             if processed:
                 score_item.delay(processed.id)
                 
-        return f"Processed {processed_count} articles."
+        # Calculate global funnel metrics to show in the UI for the last 24 hours
+        from datetime import datetime, timedelta
+        
+        now = datetime.utcnow()
+        if now.tzinfo is not None:
+             from datetime import timezone
+             now = datetime.now(timezone.utc)
+        twenty_four_hours_ago = now - timedelta(days=1)
+        
+        total_processed = db.query(ProcessedArticle).filter(ProcessedArticle.created_at >= twenty_four_hours_ago).count()
+        
+        total_high = db.query(UserArticleScore).join(ProcessedArticle).filter(
+            UserArticleScore.personal_relevance_score >= 30,
+            ProcessedArticle.created_at >= twenty_four_hours_ago
+        ).count()
+        
+        total_noise = db.query(UserArticleScore).join(ProcessedArticle).filter(
+            UserArticleScore.personal_relevance_score < 30,
+            ProcessedArticle.created_at >= twenty_four_hours_ago
+        ).count()
+        
+        update_health_status(
+            "AI Engine", 
+            "healthy", 
+            f"Processed {processed_count} articles successfully.",
+            metrics={"Total (24h)": total_processed, "Score > 30 (24h)": total_high, "Noise (24h)": total_noise}
+        )
+        
+        # Check if there are still more articles in the backlog queue
+        remaining = db.query(RawArticle).outerjoin(
+            ProcessedArticle, RawArticle.id == ProcessedArticle.raw_article_id
+        ).filter(ProcessedArticle.id == None).count()
+        
+        if remaining > 0:
+            print(f"[INFO] {remaining} articles still in queue. Triggering next batch...")
+            process_raw_articles.delay()
+            
+        return f"Processed {processed_count} articles successfully."
         
     except Exception as e:
         db.rollback()
         print(f"[ERROR] Error during AI processing: {e}")
+        update_health_status("AI Engine", "error", f"AI Processing Error: {e}")
         return f"Error: {e}"
     finally:
         db.close()
@@ -271,14 +356,14 @@ def score_item(processed_article_id: int):
             dummy_profile = InterestProfile(user_id=dummy_user.id, focus_tags=["AI", "Agentic", "LLM", "Robotics"])
             db.add(dummy_profile)
             db.flush()
-            dummy_biz = BusinessEntity(profile_id=dummy_profile.id, name="Viorant", competitors=["OpenAI", "Anthropic", "Google"], target_sectors=["Healthcare", "Fintech"])
+            dummy_biz = BusinessEntity(profile_id=dummy_profile.id, name="Viorant", tracked_organizations=["OpenAI", "Anthropic", "Google"], target_sectors=["Healthcare", "Fintech"])
             db.add(dummy_biz)
             db.commit()
             users = [dummy_user]
 
         for user in users:
             score_components = {
-                "Competitor": 0,
+                "Tracked Org": 0,
                 "Target Sector": 0,
                 "Interest Match": 0,
                 "Geographic Relevance": 0
@@ -312,13 +397,13 @@ def score_item(processed_article_id: int):
                         
                 # Business Rules
                 for biz in profile.entities:
-                    # Competitors (Max 45%)
-                    for comp in biz.competitors:
-                        if comp.lower() in text_to_search:
-                            if score_components["Competitor"] == 0:
-                                score_components["Competitor"] = 45
-                                categories.append("Competitor")
-                            reasons.append(f"Competitor: {comp}")
+                    # Tracked Organizations (Max 45%)
+                    for org in biz.tracked_organizations:
+                        if org.lower() in text_to_search:
+                            if score_components["Tracked Org"] == 0:
+                                score_components["Tracked Org"] = 45
+                                categories.append("Tracked Org")
+                            reasons.append(f"Tracked Org: {org}")
                     
                     # Target Sectors (Max 30%)
                     for sector in biz.target_sectors:
@@ -364,3 +449,324 @@ def score_item(processed_article_id: int):
         print(f"[ERROR] Error scoring item: {e}")
     finally:
         db.close()
+
+@celery.task(name="fetch_arxiv_papers")
+def fetch_arxiv_papers():
+    print("[TASK] Starting fetch_arxiv_papers task...")
+    update_health_status("arXiv", "running", "Fetching latest papers...")
+    
+    url = f"{settings.ARXIV_API_BASE}/query"
+    params = {
+        "search_query": "cat:cs.AI OR cat:cs.LG",
+        "sortBy": "lastUpdatedDate",
+        "sortOrder": "descending",
+        "max_results": 10
+    }
+    
+    print(f"[NETWORK] Fetching from arXiv...")
+    response = requests.get(url, params=params)
+    
+    if response.status_code != 200:
+        print(f"[ERROR] Failed to fetch arXiv: {response.text}")
+        update_health_status("arXiv", "error", f"API Error: {response.text}")
+        return
+        
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(response.content)
+    ns = {'atom': 'http://www.w3.org/2005/Atom'}
+    entries = root.findall('atom:entry', ns)
+    
+    db = SessionLocal()
+    saved_count = 0
+    try:
+        for entry in entries:
+            title = entry.find('atom:title', ns).text.strip().replace('\n', ' ')
+            summary = entry.find('atom:summary', ns).text.strip().replace('\n', ' ')
+            url = entry.find('atom:id', ns).text.strip()
+            published = entry.find('atom:published', ns).text.strip()
+            
+            authors = [author.find('atom:name', ns).text for author in entry.findall('atom:author', ns)]
+            author_str = ", ".join(authors)
+
+            content_hash_input = f"{title}-{url}"
+            content_hash = sha256(content_hash_input.encode('utf-8')).hexdigest()
+            
+            existing = db.query(RawArticle).filter(RawArticle.url == url).first()
+            if existing:
+                continue
+                
+            new_raw_article = RawArticle(
+                url=url,
+                content_hash=content_hash,
+                raw_data={
+                    "title": title,
+                    "description": summary,
+                    "content": summary, 
+                    "publishedAt": published,
+                    "author": author_str,
+                    "source": "arXiv"
+                }
+            )
+            db.add(new_raw_article)
+            saved_count += 1
+            
+        db.commit()
+        print(f"[SUCCESS] Successfully saved {saved_count} new arXiv papers.")
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Database error: {e}")
+    finally:
+        db.close()
+        
+    if saved_count > 0:
+        process_raw_articles.delay()
+        
+    update_health_status(
+        "arXiv", 
+        "healthy", 
+        f"Processed {len(entries)} papers, saved {saved_count}.",
+        metrics={"Fetched": len(entries), "Saved": saved_count}
+    )
+    return f"Processed {len(entries)} papers, saved {saved_count}."
+
+@celery.task(name="fetch_github_trending")
+def fetch_github_trending():
+    print("[TASK] Starting fetch_github_trending task...")
+    update_health_status("GitHub", "running", "Fetching trending repositories...")
+    
+    if not settings.GITHUB_TOKEN:
+        print("[ERROR] Error: No GITHUB_TOKEN found.")
+        update_health_status("GitHub", "error", "No GITHUB_TOKEN found")
+        return
+        
+    url = f"{settings.GITHUB_API_BASE}/search/repositories"
+    params = {
+        "q": "artificial intelligence",
+        "sort": "updated",
+        "order": "desc",
+        "per_page": 10
+    }
+    headers = {
+        "Authorization": f"token {settings.GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    print(f"[NETWORK] Fetching from GitHub...")
+    response = requests.get(url, params=params, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"[ERROR] Failed to fetch GitHub: {response.text}")
+        update_health_status("GitHub", "error", f"API Error: {response.text}")
+        return
+        
+    data = response.json()
+    items = data.get("items", [])
+    
+    db = SessionLocal()
+    saved_count = 0
+    try:
+        for item in items:
+            repo_name = item.get("full_name")
+            url = item.get("html_url")
+            description = item.get("description") or ""
+            stars = item.get("stargazers_count", 0)
+            
+            title = f"GitHub Release/Update: {repo_name}"
+            content_hash_input = f"{title}-{url}-{item.get('updated_at')}"
+            content_hash = sha256(content_hash_input.encode('utf-8')).hexdigest()
+            
+            existing = db.query(RawArticle).filter(RawArticle.content_hash == content_hash).first()
+            if existing:
+                continue
+                
+            new_raw_article = RawArticle(
+                url=url,
+                content_hash=content_hash,
+                raw_data={
+                    "title": title,
+                    "description": f"⭐ {stars} Stars | {description}",
+                    "content": f"Repository: {repo_name}\nDescription: {description}\nStars: {stars}\nLanguage: {item.get('language')}", 
+                    "publishedAt": item.get('updated_at'),
+                    "author": item.get("owner", {}).get("login"),
+                    "source": "GitHub"
+                }
+            )
+            db.add(new_raw_article)
+            saved_count += 1
+            
+        db.commit()
+        print(f"[SUCCESS] Successfully saved {saved_count} new GitHub repos.")
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Database error: {e}")
+    finally:
+        db.close()
+        
+    if saved_count > 0:
+        process_raw_articles.delay()
+        
+    update_health_status(
+        "GitHub", 
+        "healthy", 
+        f"Processed {len(items)} repos, saved {saved_count}.",
+        metrics={"Fetched": len(items), "Saved": saved_count}
+    )
+    return f"Processed {len(items)} repos, saved {saved_count}."
+
+@celery.task(name="fetch_huggingface_models")
+def fetch_huggingface_models():
+    print("[TASK] Starting fetch_huggingface_models task...")
+    update_health_status("HuggingFace", "running", "Fetching latest models...")
+    
+    url = f"{settings.HUGGINGFACE_API_BASE}/models"
+    params = {
+        "sort": "createdAt",
+        "direction": -1,
+        "limit": 10
+    }
+    headers = {}
+    if settings.HUGGINGFACE_TOKEN:
+        headers["Authorization"] = f"Bearer {settings.HUGGINGFACE_TOKEN}"
+    
+    print(f"[NETWORK] Fetching from Hugging Face...")
+    response = requests.get(url, params=params, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"[ERROR] Failed to fetch Hugging Face: {response.text}")
+        update_health_status("HuggingFace", "error", f"API Error: {response.text}")
+        return
+        
+    models = response.json()
+    
+    db = SessionLocal()
+    saved_count = 0
+    try:
+        for model in models:
+            model_id = model.get("id")
+            url = f"https://huggingface.co/{model_id}"
+            
+            title = f"New AI Model: {model_id}"
+            content_hash_input = f"{title}-{url}"
+            content_hash = sha256(content_hash_input.encode('utf-8')).hexdigest()
+            
+            existing = db.query(RawArticle).filter(RawArticle.content_hash == content_hash).first()
+            if existing:
+                continue
+                
+            new_raw_article = RawArticle(
+                url=url,
+                content_hash=content_hash,
+                raw_data={
+                    "title": title,
+                    "description": f"New model uploaded to Hugging Face: {model_id}",
+                    "content": f"Model: {model_id}\nPipeline tag: {model.get('pipeline_tag', 'N/A')}\nDownloads: {model.get('downloads', 0)}", 
+                    "publishedAt": model.get('createdAt'),
+                    "author": model_id.split('/')[0] if '/' in model_id else "Unknown",
+                    "source": "Hugging Face"
+                }
+            )
+            db.add(new_raw_article)
+            saved_count += 1
+            
+        db.commit()
+        print(f"[SUCCESS] Successfully saved {saved_count} new HF models.")
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Database error: {e}")
+    finally:
+        db.close()
+        
+    if saved_count > 0:
+        process_raw_articles.delay()
+        
+    return f"Processed {len(models)} models, saved {saved_count}."
+
+@celery.task(name="fetch_openalex_research")
+def fetch_openalex_research():
+    print("[TASK] Starting fetch_openalex_research task...")
+    update_health_status("OpenAlex", "running", "Fetching latest research...")
+    
+    url = f"{settings.OPENALEX_API_BASE}/works"
+    params = {
+        "search": "artificial intelligence",
+        "sort": "publication_date:desc",
+        "per-page": 10,
+        "filter": "has_abstract:true"
+    }
+    
+    headers = {}
+    if settings.OPENALEX_EMAIL:
+        headers["mailto"] = settings.OPENALEX_EMAIL
+        
+    print(f"[NETWORK] Fetching from OpenAlex...")
+    response = requests.get(url, params=params, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"[ERROR] Failed to fetch OpenAlex: {response.text}")
+        update_health_status("OpenAlex", "error", f"API Error: {response.status_code}")
+        return
+        
+    data = response.json()
+    works = data.get("results", [])
+    
+    db = SessionLocal()
+    saved_count = 0
+    try:
+        for work in works:
+            title = work.get("title", "Untitled")
+            abstract = work.get("abstract_inverted_index", {})
+            
+            # Reconstruct abstract from inverted index
+            abstract_text = ""
+            if abstract:
+                words = {}
+                for word, positions in abstract.items():
+                    for pos in positions:
+                        words[pos] = word
+                abstract_text = " ".join([words[p] for p in sorted(words.keys())])
+                
+            url = work.get("id")
+            
+            content_hash_input = f"{title}-{url}"
+            content_hash = sha256(content_hash_input.encode('utf-8')).hexdigest()
+            
+            existing = db.query(RawArticle).filter(RawArticle.content_hash == content_hash).first()
+            if existing:
+                continue
+                
+            authors = [a.get("author", {}).get("display_name") for a in work.get("authorships", [])]
+            author_str = ", ".join(filter(None, authors)) if authors else "Unknown"
+            
+            new_raw_article = RawArticle(
+                url=url,
+                content_hash=content_hash,
+                raw_data={
+                    "title": title,
+                    "description": abstract_text[:500] + "..." if len(abstract_text) > 500 else abstract_text,
+                    "content": abstract_text, 
+                    "publishedAt": work.get('publication_date'),
+                    "author": author_str,
+                    "source": "OpenAlex"
+                }
+            )
+            db.add(new_raw_article)
+            saved_count += 1
+            
+        db.commit()
+        print(f"[SUCCESS] Successfully saved {saved_count} new OpenAlex works.")
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Database error: {e}")
+    finally:
+        db.close()
+        
+    if saved_count > 0:
+        process_raw_articles.delay()
+        
+    update_health_status(
+        "OpenAlex", 
+        "healthy", 
+        f"Processed {len(works)} works, saved {saved_count}.",
+        metrics={"Fetched": len(works), "Saved": saved_count}
+    )
+    return f"Processed {len(works)} works, saved {saved_count}."

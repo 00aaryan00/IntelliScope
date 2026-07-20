@@ -1,6 +1,34 @@
 import type { IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
+import { supabase } from './supabase';
 
 const API_BASE_URL = 'http://localhost:8000/api';
+
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers = new Headers(options.headers);
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+  }
+  return fetch(url, { ...options, headers });
+};
+
+const getTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + " years ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + " months ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + " days ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + " hours ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + " minutes ago";
+  return Math.floor(seconds) + " seconds ago";
+};
 
 // Helper to map backend format to frontend format
 const mapBackendToFrontend = (item: any): IntelligenceObjectCardProps => {
@@ -9,7 +37,7 @@ const mapBackendToFrontend = (item: any): IntelligenceObjectCardProps => {
     type: item.intelligence?.category || 'news',
     title: item.title,
     source: item.author || new URL(item.url).hostname.replace('www.', ''),
-    timeAgo: new Date(item.published_date).toLocaleDateString(),
+    timeAgo: getTimeAgo(item.published_date),
     aiSummary: item.intelligence?.bullet_points || 'Processing AI summary...',
     businessImpact: item.intelligence?.business_impact,
     impactLevel: (item.intelligence?.personal_score || 0) >= 80 ? 'critical' : ((item.intelligence?.personal_score || 0) >= 60 ? 'high' : ((item.intelligence?.personal_score || 0) >= 30 ? 'medium' : 'low')),
@@ -28,7 +56,7 @@ export const fetchArticles = async (category?: string, skip: number = 0, limit: 
     url.searchParams.append('skip', skip.toString());
     url.searchParams.append('limit', limit.toString());
       
-    const response = await fetch(url.toString());
+    const response = await apiFetch(url.toString());
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -42,7 +70,7 @@ export const fetchArticles = async (category?: string, skip: number = 0, limit: 
 
 export const searchArticles = async (query: string): Promise<IntelligenceObjectCardProps[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+    const response = await apiFetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -62,7 +90,7 @@ export interface IntelligenceObjectDetail extends IntelligenceObjectCardProps {
 
 export const fetchArticleById = async (id: string): Promise<IntelligenceObjectDetail | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/articles/${id}`);
+    const response = await apiFetch(`${API_BASE_URL}/articles/${id}`);
     if (!response.ok) {
       if (response.status === 404) return null;
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -83,7 +111,7 @@ export const fetchArticleById = async (id: string): Promise<IntelligenceObjectDe
 
 export const fetchSimilarArticles = async (id: string): Promise<IntelligenceObjectCardProps[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/articles/${id}/similar`);
+    const response = await apiFetch(`${API_BASE_URL}/articles/${id}/similar`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -97,7 +125,7 @@ export const fetchSimilarArticles = async (id: string): Promise<IntelligenceObje
 
 export const getCategoryStats = async (): Promise<Record<string, { total: number, new: number }>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/stats/categories`);
+    const response = await apiFetch(`${API_BASE_URL}/stats/categories`);
     if (!response.ok) throw new Error('Failed to fetch stats');
     return await response.json();
   } catch (error) {
@@ -108,7 +136,7 @@ export const getCategoryStats = async (): Promise<Record<string, { total: number
 
 export const getDashboardData = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/dashboard`);
+    const response = await apiFetch(`${API_BASE_URL}/dashboard`);
     if (!response.ok) throw new Error('Failed to fetch dashboard data');
     return await response.json();
   } catch (error) {
@@ -123,14 +151,14 @@ export interface UserProfile {
   entities: Array<{
     id?: number;
     name: string;
-    competitors: string[];
+    tracked_organizations: string[];
     target_sectors: string[];
   }>;
 }
 
 export const getProfile = async (): Promise<UserProfile | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/profile`);
+    const response = await apiFetch(`${API_BASE_URL}/profile`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -141,7 +169,7 @@ export const getProfile = async (): Promise<UserProfile | null> => {
 
 export const updateProfile = async (profile: UserProfile): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/profile`, {
+    const response = await apiFetch(`${API_BASE_URL}/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -157,11 +185,30 @@ export const updateProfile = async (profile: UserProfile): Promise<boolean> => {
 
 export const fetchAlerts = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/alerts`);
+    const response = await apiFetch(`${API_BASE_URL}/alerts`);
     if (!response.ok) throw new Error('Failed to fetch alerts');
     return await response.json();
   } catch (error) {
     console.error("Could not fetch alerts:", error);
+    return [];
+  }
+};
+
+export interface SystemHealthRecord {
+  component_name: string;
+  status: 'healthy' | 'error' | 'running';
+  message: string | null;
+  metrics?: Record<string, number | string>;
+  last_run: string | null;
+}
+
+export const fetchSystemHealth = async (): Promise<SystemHealthRecord[]> => {
+  try {
+    const response = await apiFetch(`${API_BASE_URL}/system/health`);
+    if (!response.ok) throw new Error('Failed to fetch system health');
+    return await response.json();
+  } catch (error) {
+    console.error("Could not fetch system health:", error);
     return [];
   }
 };

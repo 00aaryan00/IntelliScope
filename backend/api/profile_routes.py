@@ -4,13 +4,14 @@ from pydantic import BaseModel
 from typing import List, Optional
 from db.session import get_db
 from models.user_profile import User, InterestProfile, BusinessEntity
+from api.auth import get_current_user
 
 router = APIRouter()
 
 class BusinessEntitySchema(BaseModel):
     id: Optional[int] = None
     name: str
-    competitors: List[str]
+    tracked_organizations: List[str]
     target_sectors: List[str]
 
 class ProfileUpdateSchema(BaseModel):
@@ -19,9 +20,9 @@ class ProfileUpdateSchema(BaseModel):
     entities: List[BusinessEntitySchema]
 
 @router.get("/api/profile")
-def get_profile(db: Session = Depends(get_db)):
+def get_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Get the default MVP user
-    user = db.query(User).first()
+    user = current_user
     if not user or not user.profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -34,15 +35,15 @@ def get_profile(db: Session = Depends(get_db)):
             {
                 "id": e.id,
                 "name": e.name,
-                "competitors": e.competitors,
+                "tracked_organizations": e.tracked_organizations,
                 "target_sectors": e.target_sectors
             } for e in profile.entities
         ]
     }
 
 @router.put("/api/profile")
-def update_profile(data: ProfileUpdateSchema, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+def update_profile(data: ProfileUpdateSchema, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = current_user
     if not user or not user.profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -59,7 +60,7 @@ def update_profile(data: ProfileUpdateSchema, db: Session = Depends(get_db)):
         new_entity = BusinessEntity(
             profile_id=profile.id,
             name=e_data.name,
-            competitors=e_data.competitors,
+            tracked_organizations=e_data.tracked_organizations,
             target_sectors=e_data.target_sectors
         )
         db.add(new_entity)

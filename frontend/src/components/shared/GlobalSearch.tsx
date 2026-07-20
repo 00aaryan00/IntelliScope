@@ -99,8 +99,8 @@ export function GlobalSearch() {
                     <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"Summarize the latest Arxiv papers on LLM agents"</span>
                     <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4" />
                   </button>
-                  <button type="button" onClick={() => handleSearch(undefined, "What are competitors doing in the RAG space?")} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
-                    <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"What are competitors doing in the RAG space?"</span>
+                  <button type="button" onClick={() => handleSearch(undefined, "What are tracked organizations doing in the RAG space?")} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group text-left">
+                    <span className="text-slate-700 dark:text-slate-300 text-sm md:text-base">"What are tracked organizations doing in the RAG space?"</span>
                     <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4" />
                   </button>
                 </div>
