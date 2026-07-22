@@ -183,6 +183,7 @@ def fetch_hacker_news():
         print(f"[SUCCESS] Successfully saved {saved_count} new raw HN articles to the database.")
     except Exception as e:
         db.rollback()
+        saved_count = 0
         print(f"[ERROR] Database error: {e}")
     finally:
         db.close()
@@ -301,23 +302,15 @@ def process_raw_articles():
              now = datetime.now(timezone.utc)
         twenty_four_hours_ago = now - timedelta(days=1)
         
+        total_raw = db.query(RawArticle).filter(RawArticle.created_at >= twenty_four_hours_ago).count()
         total_processed = db.query(ProcessedArticle).filter(ProcessedArticle.created_at >= twenty_four_hours_ago).count()
-        
-        total_high = db.query(UserArticleScore).join(ProcessedArticle).filter(
-            UserArticleScore.personal_relevance_score >= 30,
-            ProcessedArticle.created_at >= twenty_four_hours_ago
-        ).count()
-        
-        total_noise = db.query(UserArticleScore).join(ProcessedArticle).filter(
-            UserArticleScore.personal_relevance_score < 30,
-            ProcessedArticle.created_at >= twenty_four_hours_ago
-        ).count()
+        total_skipped = max(0, total_raw - total_processed)
         
         update_health_status(
             "AI Engine", 
             "healthy", 
             f"Processed {processed_count} articles successfully.",
-            metrics={"Total (24h)": total_processed, "Score > 30 (24h)": total_high, "Noise (24h)": total_noise}
+            metrics={"Raw Downloaded (24h)": total_raw, "AI Analyzed (24h)": total_processed, "Skipped (24h)": total_skipped}
         )
         
         # Check if there are still more articles in the backlog queue
@@ -514,6 +507,7 @@ def fetch_arxiv_papers():
         print(f"[SUCCESS] Successfully saved {saved_count} new arXiv papers.")
     except Exception as e:
         db.rollback()
+        saved_count = 0
         print(f"[ERROR] Database error: {e}")
     finally:
         db.close()
@@ -575,7 +569,7 @@ def fetch_github_trending():
             content_hash_input = f"{title}-{url}-{item.get('updated_at')}"
             content_hash = sha256(content_hash_input.encode('utf-8')).hexdigest()
             
-            existing = db.query(RawArticle).filter(RawArticle.content_hash == content_hash).first()
+            existing = db.query(RawArticle).filter(RawArticle.url == url).first()
             if existing:
                 continue
                 
@@ -598,6 +592,7 @@ def fetch_github_trending():
         print(f"[SUCCESS] Successfully saved {saved_count} new GitHub repos.")
     except Exception as e:
         db.rollback()
+        saved_count = 0
         print(f"[ERROR] Database error: {e}")
     finally:
         db.close()

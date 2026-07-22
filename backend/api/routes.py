@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func, or_, and_, case
 from db.session import SessionLocal
 from models.article import ProcessedArticle
 from models.intelligence import Summary, Embedding
@@ -87,11 +87,12 @@ def get_category_stats(db: Session = Depends(get_db), current_user: User = Depen
             .join(ProcessedArticle, Summary.processed_article_id == ProcessedArticle.id)
             .outerjoin(UserArticleScore, (ProcessedArticle.id == UserArticleScore.processed_article_id) & (UserArticleScore.user_id == user_id))
             .filter(
-                ~and_(
-                    Summary.category == 'news',
-                    or_(
+                or_(
+                    Summary.category != 'news',
+                    UserArticleScore.personal_relevance_score >= 30,
+                    and_(
                         UserArticleScore.personal_relevance_score == None,
-                        UserArticleScore.personal_relevance_score < 30
+                        ProcessedArticle.created_at >= twenty_four_hours_ago
                     )
                 )
             )
@@ -271,11 +272,25 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
         if category and category != 'all':
             query = query.filter(Summary.category == category)
             
-        # For 'news' specifically, filter out low-relevance items to match the sidebar stats and prevent empty pages
+        # For 'news' specifically, filter out low-relevance items, but ALLOW unscored items (None) 
+        # ONLY IF they were fetched in the last 24 hours. This prevents the Cold Start user 
+        # from seeing hundreds of old unscored articles, and only shows them the latest day's news.
         if category == 'news':
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            if now.tzinfo is not None:
+                 from datetime import timezone
+                 now = datetime.now(timezone.utc)
+            twenty_four_hours_ago = now - timedelta(days=1)
+            
             query = query.filter(
-                UserArticleScore.personal_relevance_score != None,
-                UserArticleScore.personal_relevance_score >= 30
+                or_(
+                    UserArticleScore.personal_relevance_score >= 30,
+                    and_(
+                        UserArticleScore.personal_relevance_score == None,
+                        ProcessedArticle.created_at >= twenty_four_hours_ago
+                    )
+                )
             )
             
         results = query.order_by(

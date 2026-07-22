@@ -46,12 +46,7 @@ export function FeedPage({ title, description, typeFilter }: FeedPageProps) {
     setIsLoadingMore(false);
   };
 
-  // Filter News to only show highly relevant items
   let displayData = data;
-  if (typeFilter === 'news') {
-    displayData = displayData.filter(item => (item.personalScore || 0) >= 30);
-  }
-  
   const filteredData = activeFilter === 'All' ? displayData : displayData; // For the MVP, activeFilter can just be cosmetic or we can add actual frontend filtering later.
 
   const filters = ['All', 'Today', 'High Priority', 'Critical', 'OpenAI', 'Anthropic', 'Funding > $50M'];

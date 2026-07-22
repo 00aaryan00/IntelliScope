@@ -59,6 +59,37 @@ export function IntelligenceObjectCard({
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Helper to parse weird AI JSON/Set outputs into clean React bullet points
+  const renderAiSummary = (summary: string) => {
+    try {
+      if (!summary) return null;
+      
+      // If it's a valid JSON array or pseudo-JSON set {"a", "b"}
+      if (summary.trim().startsWith('[') || summary.trim().startsWith('{')) {
+        // Extract all quoted strings
+        const matches = summary.match(/"([^"]+)"/g);
+        if (matches && matches.length > 0) {
+          const points = matches.map(m => m.replace(/(^"|"$)/g, ''));
+          return (
+            <ul className="list-disc pl-5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed space-y-1.5 marker:text-blue-400">
+              {points.slice(0, 3).map((pt, i) => (
+                <li key={i} className="line-clamp-2">{pt}</li>
+              ))}
+            </ul>
+          );
+        }
+      }
+    } catch {
+      // Fallback to default rendering if parsing fails
+    }
+    
+    return (
+      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed pl-2 line-clamp-3">
+        {summary}
+      </p>
+    );
+  };
+
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
@@ -170,9 +201,9 @@ export function IntelligenceObjectCard({
           <div className="absolute -top-2 -left-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full p-1 shadow-sm">
             <Zap size={12} className="text-blue-500 dark:text-blue-400 fill-blue-500/20 dark:fill-blue-400/20" />
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed pl-2 line-clamp-3">
-            {aiSummary}
-          </p>
+          <div className="pl-2">
+            {renderAiSummary(aiSummary)}
+          </div>
         </div>
 
         {/* Personal Score Badge */}
