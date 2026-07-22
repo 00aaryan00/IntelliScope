@@ -166,9 +166,39 @@ export function IntelligenceDetail() {
             <h2 className="font-semibold text-slate-900 dark:text-white">AI Executive Summary</h2>
           </div>
           <div className="p-6">
-            <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">
-              {data.aiSummary}
-            </p>
+            {(() => {
+              if (data.aiSummary && (data.aiSummary.startsWith('[') || data.aiSummary.startsWith('{'))) {
+                try {
+                  const parsed = JSON.parse(data.aiSummary.replace(/^{/, '[').replace(/}$/, ']'));
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    return (
+                      <ul className="list-disc pl-5 text-slate-700 dark:text-slate-300 leading-relaxed text-lg space-y-2 marker:text-blue-500">
+                        {parsed.map((pt: string, i: number) => (
+                          <li key={i}>{pt}</li>
+                        ))}
+                      </ul>
+                    );
+                  }
+                } catch {
+                  const matches = data.aiSummary.match(/"([^"]+)"/g);
+                  if (matches && matches.length > 0) {
+                    const points = matches.map(m => m.replace(/(^"|"$)/g, ''));
+                    return (
+                      <ul className="list-disc pl-5 text-slate-700 dark:text-slate-300 leading-relaxed text-lg space-y-2 marker:text-blue-500">
+                        {points.map((pt, i) => (
+                          <li key={i}>{pt}</li>
+                        ))}
+                      </ul>
+                    );
+                  }
+                }
+              }
+              return (
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">
+                  {data.aiSummary}
+                </p>
+              );
+            })()}
           </div>
         </div>
 

@@ -115,3 +115,54 @@ def generate_embedding(text) -> list:
     except Exception as e:
         print(f"[ERROR] Error generating embedding: {e}")
         return [0.0] * 768
+
+def generate_rag_answer(query: str, context: str) -> str:
+    """
+    Generates a conversational answer to the user's query based on the provided article context.
+    """
+    prompt = f"""
+    You are an expert intelligence analyst answering a user's question based ONLY on the provided context.
+    
+    User Query: "{query}"
+    
+    Context (Excerpts from top semantic search results):
+    {context}
+    
+    Instructions:
+    1. Answer the user's query directly and concisely.
+    2. Synthesize the information from the context.
+    3. If the context does not contain enough information to answer the query, state that clearly but provide whatever relevant insights you can glean.
+    4. Do not invent or hallucinate information outside of the context.
+    5. Format your response in clean markdown (e.g., use bolding for emphasis or bullet points if necessary). Do not use JSON.
+    """
+    
+    API_URL = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are IntelliScope's AI Assistant. Provide helpful, accurate, and concise answers based on the provided intelligence data."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.3
+    }
+    
+    try:
+        print(f"[AI] Generating RAG answer via Groq...")
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        return response.json()['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f"[ERROR] Error generating RAG answer: {e}")
+        return "I encountered an error while trying to synthesize an answer from the intelligence database."

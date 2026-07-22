@@ -48,7 +48,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between mb-8 px-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">T</div>
-          <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Tasknova</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Intelligent Dashboard</span>
         </div>
       </div>
 

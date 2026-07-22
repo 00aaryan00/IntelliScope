@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, SearchX } from 'lucide-react';
+import { Loader2, SearchX, Sparkles } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { IntelligenceObjectCard, type IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
 import { searchArticles } from '../lib/api';
@@ -20,19 +20,27 @@ export function SearchPage() {
   const query = searchParams.get('q') || '';
   
   const [data, setData] = useState<IntelligenceObjectCardProps[]>([]);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadResults = async () => {
       if (!query) {
         setData([]);
+        setAnswer(null);
         setIsLoading(false);
         return;
       }
       
       setIsLoading(true);
       const results = await searchArticles(query);
-      setData(results);
+      if (results) {
+        setData(results.results);
+        setAnswer(results.answer);
+      } else {
+        setData([]);
+        setAnswer(null);
+      }
       setIsLoading(false);
     };
 
@@ -55,18 +63,45 @@ export function SearchPage() {
           <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       ) : data.length > 0 ? (
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-        >
-          {data.map((article) => (
-            <motion.div key={article.id} variants={item} className="h-full">
-              <IntelligenceObjectCard {...article} />
+        <div className="space-y-8">
+          {/* AI Answer Block */}
+          {answer && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-xl p-6 shadow-sm"
+            >
+              <div className="flex items-center gap-2 mb-3 text-blue-600 dark:text-blue-400 font-semibold">
+                <Sparkles size={20} />
+                <h2>AI Synthesized Answer</h2>
+              </div>
+              <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed">
+                {answer.split('\n').map((paragraph, idx) => (
+                  <p key={idx} className="mb-2">{paragraph}</p>
+                ))}
+              </div>
             </motion.div>
-          ))}
-        </motion.div>
+          )}
+
+          {/* Source Articles Grid */}
+          <div>
+            <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4 px-1">
+              Source Intelligence
+            </h3>
+            <motion.div 
+              variants={container}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+            >
+              {data.map((article) => (
+                <motion.div key={article.id} variants={item} className="h-full">
+                  <IntelligenceObjectCard {...article} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
           <SearchX className="w-12 h-12 mb-4 text-slate-300 dark:text-slate-700" />

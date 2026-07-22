@@ -68,17 +68,25 @@ export const fetchArticles = async (category?: string, skip: number = 0, limit: 
   }
 };
 
-export const searchArticles = async (query: string): Promise<IntelligenceObjectCardProps[]> => {
+export interface SearchResponse {
+  answer: string;
+  results: IntelligenceObjectCardProps[];
+}
+
+export const searchArticles = async (query: string): Promise<SearchResponse | null> => {
   try {
     const response = await apiFetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data.map(mapBackendToFrontend);
+    return {
+      answer: data.answer,
+      results: data.results.map(mapBackendToFrontend)
+    };
   } catch (error) {
     console.error("Could not search articles:", error);
-    return [];
+    return null;
   }
 };
 

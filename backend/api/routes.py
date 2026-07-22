@@ -329,8 +329,9 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
 @router.get("/api/search")
 def search_articles(q: str = Query(..., description="The semantic search query"), db: Session = Depends(get_db)):
     """
-    Performs a vector similarity search across the entire database!
+    Performs a vector similarity search across the entire database and generates a RAG answer.
     """
+    from services.ai_service import generate_rag_answer
     try:
         # 1. Turn the user's search string into a 768-dimension mathematical vector using Gemini
         query_vector = generate_embedding(q)
@@ -345,10 +346,11 @@ def search_articles(q: str = Query(..., description="The semantic search query")
             .all()
         )
         
-        # 3. Format the response
-        response = []
+        # 3. Format the response and build context for RAG
+        response_articles = []
+        context_parts = []
         for embedding, article in results:
-            response.append({
+            response_articles.append({
                 "id": article.id,
                 "title": article.title,
                 "published_date": article.published_date or article.created_at,
@@ -358,7 +360,18 @@ def search_articles(q: str = Query(..., description="The semantic search query")
                 }
             })
             
-        return response
+            # Build context for the LLM
+            context_parts.append(f"Title: {article.title}\nContent Snippet: {article.summary.bullet_points if article.summary else ''}")
+            
+        context = "\n\n".join(context_parts)
+        
+        # 4. Generate the RAG Answer
+        answer = generate_rag_answer(q, context) if context else "I couldn't find any relevant intelligence in the database to answer this question."
+            
+        return {
+            "answer": answer,
+            "results": response_articles
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

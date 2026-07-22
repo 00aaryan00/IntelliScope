@@ -457,7 +457,10 @@ def fetch_arxiv_papers():
     }
     
     print(f"[NETWORK] Fetching from arXiv...")
-    response = requests.get(url, params=params)
+    headers = {
+        "User-Agent": "IntelliScopeBot/1.0 (Research Project)"
+    }
+    response = requests.get(url, params=params, headers=headers)
     
     if response.status_code != 200:
         print(f"[ERROR] Failed to fetch arXiv: {response.text}")
