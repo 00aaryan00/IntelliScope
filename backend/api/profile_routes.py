@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from db.session import get_db
-from models.user_profile import User, InterestProfile, BusinessEntity
+from models.user_profile import User, InterestProfile, BusinessEntity, SavedArticle
+from models.article import ProcessedArticle
 from api.auth import get_current_user
 
 router = APIRouter()
@@ -67,3 +68,52 @@ def update_profile(data: ProfileUpdateSchema, db: Session = Depends(get_db), cur
         
     db.commit()
     return {"status": "success"}
+
+@router.get("/api/saved")
+def get_saved_articles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Fetches all saved articles for the authenticated user"""
+    saved = db.query(SavedArticle).filter(SavedArticle.user_id == current_user.id).order_by(SavedArticle.id.desc()).all()
+    
+    response = []
+    for s in saved:
+        article = s.article
+        if article:
+            response.append({
+                "id": article.id,
+                "title": article.title,
+                "published_date": article.published_date or article.created_at,
+                "url": article.raw_article.url if article.raw_article else None,
+                "intelligence": {
+                    "bullet_points": article.summary.bullet_points if article.summary else None,
+                },
+                "is_saved": True
+            })
+            
+    return response
+
+@router.post("/api/saved/{article_id}")
+def save_article(article_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Saves an article for the authenticated user"""
+    # Check if already saved
+    existing = db.query(SavedArticle).filter(
+        SavedArticle.user_id == current_user.id,
+        SavedArticle.processed_article_id == article_id
+    ).first()
+    
+    if not existing:
+        new_save = SavedArticle(user_id=current_user.id, processed_article_id=article_id)
+        db.add(new_save)
+        db.commit()
+        
+    return {"status": "success", "is_saved": True}
+
+@router.delete("/api/saved/{article_id}")
+def unsave_article(article_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Removes a saved article for the authenticated user"""
+    db.query(SavedArticle).filter(
+        SavedArticle.user_id == current_user.id,
+        SavedArticle.processed_article_id == article_id
+    ).delete()
+    
+    db.commit()
+    return {"status": "success", "is_saved": False}

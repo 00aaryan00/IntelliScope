@@ -677,6 +677,12 @@ def fetch_huggingface_models():
     if saved_count > 0:
         process_raw_articles.delay()
         
+    update_health_status(
+        "HuggingFace", 
+        "healthy", 
+        f"Processed {len(models)} models, saved {saved_count}.",
+        metrics={"Fetched": len(models), "Saved": saved_count}
+    )
     return f"Processed {len(models)} models, saved {saved_count}."
 
 @celery.task(name="fetch_openalex_research")

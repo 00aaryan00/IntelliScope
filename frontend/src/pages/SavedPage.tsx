@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, SearchX } from 'lucide-react';
+import { Bookmark, SearchX, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { IntelligenceObjectCard, type IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
 
@@ -16,13 +16,22 @@ const item: any = {
 export function SavedPage() {
   const [savedItems, setSavedItems] = useState<IntelligenceObjectCardProps[]>([]);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
-      setSavedItems(saved.reverse()); // Show newest first
-    } catch {
-      setSavedItems([]);
-    }
+    const loadSaved = async () => {
+      setIsLoading(true);
+      try {
+        const { fetchSavedArticles } = await import('../lib/api');
+        const saved = await fetchSavedArticles();
+        setSavedItems(saved);
+      } catch {
+        setSavedItems([]);
+      }
+      setIsLoading(false);
+    };
+    
+    loadSaved();
   }, []);
 
   return (
@@ -32,11 +41,15 @@ export function SavedPage() {
           Saved Intelligence
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-2xl">
-          Your personal library of bookmarked items (stored locally).
+          Your personal library of bookmarked items, securely synced to your account.
         </p>
       </header>
 
-      {savedItems.length > 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center items-center py-20 text-blue-600 dark:text-blue-400">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      ) : savedItems.length > 0 ? (
         <motion.div 
           variants={container}
           initial="hidden"

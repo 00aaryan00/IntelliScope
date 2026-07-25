@@ -4,7 +4,7 @@ from sqlalchemy import desc, func, or_, and_, case
 from db.session import SessionLocal
 from models.article import ProcessedArticle
 from models.intelligence import Summary, Embedding
-from models.user_profile import User, UserArticleScore
+from models.user_profile import User, UserArticleScore, SavedArticle
 from api.auth import get_current_user
 from models.system import SystemHealth
 from services.ai_service import generate_embedding
@@ -264,9 +264,10 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
         user_id = user.id if user else None
 
         query = (
-            db.query(ProcessedArticle, UserArticleScore)
+            db.query(ProcessedArticle, UserArticleScore, SavedArticle)
             .join(Summary, ProcessedArticle.id == Summary.processed_article_id)
             .outerjoin(UserArticleScore, (ProcessedArticle.id == UserArticleScore.processed_article_id) & (UserArticleScore.user_id == user_id))
+            .outerjoin(SavedArticle, (ProcessedArticle.id == SavedArticle.processed_article_id) & (SavedArticle.user_id == user_id))
         )
         
         if category and category != 'all':
@@ -302,7 +303,7 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
         
         # Format the response exactly how the React frontend will expect it
         response = []
-        for article, score in results:
+        for article, score, saved in results:
             # article.summary and article.raw_article are automatically available because we setup relationships in SQLAlchemy!
             response.append({
                 "id": article.id,
@@ -319,7 +320,8 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
                     "personal_score": score.personal_relevance_score if score else 0,
                     "relevance_category": score.relevance_category if score else None,
                     "relevance_reason": score.relevance_reason if score else None
-                }
+                },
+                "is_saved": True if saved else False
             })
             
         return response
@@ -339,8 +341,9 @@ def search_articles(q: str = Query(..., description="The semantic search query")
         # 2. Use pgvector's L2 distance operator (<->) to find the closest vectors in the database
         # We order by distance ascending (closest meaning lowest distance first)
         results = (
-            db.query(Embedding, ProcessedArticle)
+            db.query(Embedding, ProcessedArticle, SavedArticle)
             .join(ProcessedArticle, Embedding.processed_article_id == ProcessedArticle.id)
+            .outerjoin(SavedArticle, (ProcessedArticle.id == SavedArticle.processed_article_id) & (SavedArticle.user_id == current_user.id))
             .order_by(Embedding.embedding.l2_distance(query_vector))
             .limit(5)
             .all()
@@ -349,7 +352,7 @@ def search_articles(q: str = Query(..., description="The semantic search query")
         # 3. Format the response and build context for RAG
         response_articles = []
         context_parts = []
-        for embedding, article in results:
+        for embedding, article, saved in results:
             response_articles.append({
                 "id": article.id,
                 "title": article.title,
@@ -357,7 +360,8 @@ def search_articles(q: str = Query(..., description="The semantic search query")
                 "url": article.raw_article.url if article.raw_article else None,
                 "intelligence": {
                     "bullet_points": article.summary.bullet_points if article.summary else None,
-                }
+                },
+                "is_saved": True if saved else False
             })
             
             # Build context for the LLM
@@ -381,14 +385,17 @@ def get_article_by_id(article_id: int, db: Session = Depends(get_db), current_us
     Fetches a single article by ID along with its full content and AI summary.
     """
     try:
-        article = (
-            db.query(ProcessedArticle)
+        result = (
+            db.query(ProcessedArticle, SavedArticle)
+            .outerjoin(SavedArticle, (ProcessedArticle.id == SavedArticle.processed_article_id) & (SavedArticle.user_id == current_user.id))
             .filter(ProcessedArticle.id == article_id)
             .first()
         )
         
-        if not article:
+        if not result:
             raise HTTPException(status_code=404, detail="Article not found")
+            
+        article, saved = result
             
         return {
             "id": article.id,
@@ -402,7 +409,8 @@ def get_article_by_id(article_id: int, db: Session = Depends(get_db), current_us
                 "business_impact": article.summary.business_impact if article.summary else None,
                 "technical_impact": article.summary.technical_impact if article.summary else None,
                 "business_relevant": article.summary.business_relevant if article.summary else False
-            }
+            },
+            "is_saved": True if saved else False
         }
     except HTTPException:
         raise

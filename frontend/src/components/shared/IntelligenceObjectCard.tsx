@@ -17,6 +17,7 @@ export interface IntelligenceObjectCardProps {
   personalScore?: number;
   relevanceCategory?: string;
   relevanceReason?: string;
+  isSaved?: boolean;
 }
 
 const typeConfig: Record<IntelligenceType, { icon: any, color: string, bg: string, label: string }> = {
@@ -50,13 +51,14 @@ export function IntelligenceObjectCard({
   impactLevel = 'low',
   personalScore = 0,
   relevanceCategory,
-  relevanceReason
+  relevanceReason,
+  isSaved: initialIsSaved = false
 }: IntelligenceObjectCardProps) {
   const config = typeConfig[type];
   const Icon = config.icon;
   const impact = impactConfig[impactLevel];
 
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(initialIsSaved);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Helper to parse weird AI JSON/Set outputs into clean React bullet points
@@ -90,36 +92,25 @@ export function IntelligenceObjectCard({
     );
   };
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
-      setIsSaved(saved.some((item: any) => item.id === id));
-    } catch {
-      // ignore
-    }
-  }, [id]);
+  // We no longer read from local storage on mount. We use the prop provided by the backend!
 
-  const toggleSave = (e: React.MouseEvent) => {
+  const toggleSave = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
+    import('../../lib/api').then(async ({ saveArticle, unsaveArticle }) => {
       if (isSaved) {
-        const newSaved = saved.filter((item: any) => item.id !== id);
-        localStorage.setItem('saved_articles', JSON.stringify(newSaved));
         setIsSaved(false);
-        showTemporaryToast("Removed from Saved");
+        const success = await unsaveArticle(id);
+        if (success) showTemporaryToast("Removed from saved items");
+        else setIsSaved(true); // Revert on failure
       } else {
-        const itemToSave = { id, type, title, source, timeAgo, aiSummary, businessImpact, impactLevel, personalScore, relevanceCategory, relevanceReason };
-        saved.push(itemToSave);
-        localStorage.setItem('saved_articles', JSON.stringify(saved));
         setIsSaved(true);
-        showTemporaryToast("Saved to Library");
+        const success = await saveArticle(id);
+        if (success) showTemporaryToast("Saved to your library");
+        else setIsSaved(false); // Revert on failure
       }
-    } catch {
-      // ignore
-    }
+    });
   };
 
   const showTemporaryToast = (msg: string) => {

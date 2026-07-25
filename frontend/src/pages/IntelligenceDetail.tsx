@@ -15,34 +15,24 @@ export function IntelligenceDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!id) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
-      setIsSaved(saved.some((item: any) => item.id === id));
-    } catch {
-      // ignore
-    }
-  }, [id]);
+  // We no longer check local storage, the backend tells us if it's saved in loadArticle!
 
-  const toggleSave = () => {
-    if (!data) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_articles') || '[]');
+  const toggleSave = async () => {
+    if (!data || !id) return;
+    
+    import('../lib/api').then(async ({ saveArticle, unsaveArticle }) => {
       if (isSaved) {
-        const newSaved = saved.filter((item: any) => item.id !== id);
-        localStorage.setItem('saved_articles', JSON.stringify(newSaved));
         setIsSaved(false);
-        showTemporaryToast("Removed from Saved");
+        const success = await unsaveArticle(id);
+        if (success) showTemporaryToast("Removed from saved items");
+        else setIsSaved(true); // Revert on failure
       } else {
-        saved.push(data);
-        localStorage.setItem('saved_articles', JSON.stringify(saved));
         setIsSaved(true);
-        showTemporaryToast("Saved to Library");
+        const success = await saveArticle(id);
+        if (success) showTemporaryToast("Saved to your library");
+        else setIsSaved(false); // Revert on failure
       }
-    } catch {
-      // ignore
-    }
+    });
   };
 
   const showTemporaryToast = (msg: string) => {
@@ -60,7 +50,10 @@ export function IntelligenceDetail() {
         fetchArticleById(id),
         fetchSimilarArticles(id)
       ]);
-      setData(article);
+      if (article) {
+        setData(article);
+        setIsSaved(article.isSaved || false);
+      }
       setSimilarArticles(similar);
       setIsLoading(false);
     };

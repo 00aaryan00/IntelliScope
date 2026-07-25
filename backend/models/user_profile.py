@@ -45,3 +45,13 @@ class UserArticleScore(Base):
     
     user = relationship("User", back_populates="scores")
     article = relationship("ProcessedArticle")
+
+class SavedArticle(Base):
+    __tablename__ = "saved_articles"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    processed_article_id = Column(Integer, ForeignKey("processed_articles.id"))
+    
+    # Relationships
+    user = relationship("User")
+    article = relationship("ProcessedArticle")

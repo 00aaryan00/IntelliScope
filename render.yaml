@@ -1,0 +1,24 @@
+services:
+  # 1. FastAPI Web Server & Celery (Combined to save money/free tier)
+  - type: web
+    name: intelliscope-api
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && celery -A worker.celery_app worker --loglevel=info -D && celery -A worker.celery_app beat --loglevel=info -D && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: HUGGINGFACE_TOKEN
+        sync: false
+      - key: PYTHONPATH
+        value: .

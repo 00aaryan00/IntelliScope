@@ -1,7 +1,7 @@
 import type { IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
 import { supabase } from './supabase';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 const apiFetch = async (url: string, options: RequestInit = {}) => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -43,7 +43,8 @@ const mapBackendToFrontend = (item: any): IntelligenceObjectCardProps => {
     impactLevel: (item.intelligence?.personal_score || 0) >= 80 ? 'critical' : ((item.intelligence?.personal_score || 0) >= 60 ? 'high' : ((item.intelligence?.personal_score || 0) >= 30 ? 'medium' : 'low')),
     personalScore: item.intelligence?.personal_score,
     relevanceCategory: item.intelligence?.relevance_category,
-    relevanceReason: item.intelligence?.relevance_reason
+    relevanceReason: item.intelligence?.relevance_reason,
+    isSaved: item.is_saved || false
   };
 };
 
@@ -146,10 +147,43 @@ export const getDashboardData = async () => {
   try {
     const response = await apiFetch(`${API_BASE_URL}/dashboard`);
     if (!response.ok) throw new Error('Failed to fetch dashboard data');
-    return await response.json();
   } catch (error) {
     console.error("Could not fetch dashboard data:", error);
     return null;
+  }
+};
+
+// Saved Articles API
+
+export const fetchSavedArticles = async (): Promise<IntelligenceObjectCardProps[]> => {
+  try {
+    const response = await apiFetch(`${API_BASE_URL}/saved`);
+    if (!response.ok) throw new Error('Failed to fetch saved articles');
+    const data = await response.json();
+    return data.map(mapBackendToFrontend);
+  } catch (error) {
+    console.error("Could not fetch saved articles:", error);
+    return [];
+  }
+};
+
+export const saveArticle = async (id: string): Promise<boolean> => {
+  try {
+    const response = await apiFetch(`${API_BASE_URL}/saved/${id}`, { method: 'POST' });
+    return response.ok;
+  } catch (error) {
+    console.error(`Could not save article ${id}:`, error);
+    return false;
+  }
+};
+
+export const unsaveArticle = async (id: string): Promise<boolean> => {
+  try {
+    const response = await apiFetch(`${API_BASE_URL}/saved/${id}`, { method: 'DELETE' });
+    return response.ok;
+  } catch (error) {
+    console.error(`Could not unsave article ${id}:`, error);
+    return false;
   }
 };
 
