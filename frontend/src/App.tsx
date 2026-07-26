@@ -20,6 +20,12 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading...</div>;
   if (!session) return <Navigate to="/login" replace />;
+  
+  // If they just signed up and clicked an email confirmation link, redirect them to onboarding!
+  if (localStorage.getItem('just_signed_up') === 'true' && window.location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+  
   return <>{children}</>;
 };
 
