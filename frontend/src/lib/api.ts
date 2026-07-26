@@ -147,6 +147,8 @@ export const getDashboardData = async () => {
   try {
     const response = await apiFetch(`${API_BASE_URL}/dashboard`);
     if (!response.ok) throw new Error('Failed to fetch dashboard data');
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Could not fetch dashboard data:", error);
     return null;
