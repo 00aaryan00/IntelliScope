@@ -103,7 +103,7 @@ export function Sidebar() {
             const btn = document.getElementById('sidebar-refresh-btn');
             if (btn) btn.innerHTML = 'Refreshing...';
             try {
-              await fetch('http://localhost:8000/api/refresh', { method: 'POST' });
+              await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}/refresh`, { method: 'POST' });
               window.location.reload();
             } catch (e) {
               console.error(e);
