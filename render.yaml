@@ -5,7 +5,7 @@ services:
     env: python
     plan: free
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: bash -c "cd backend; alembic upgrade head && celery -A worker.celery_app worker --pool=solo --loglevel=info & celery -A worker.celery_app beat --loglevel=info & uvicorn main:app --host 0.0.0.0 --port $PORT"
+    startCommand: bash -c "cd backend; python enable_pgvector.py && alembic upgrade head && celery -A worker.celery_app worker --pool=solo --loglevel=info & celery -A worker.celery_app beat --loglevel=info & uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
         sync: false
