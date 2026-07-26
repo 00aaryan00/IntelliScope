@@ -329,7 +329,7 @@ def get_articles(category: Optional[str] = None, skip: int = 0, limit: int = 12,
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/search")
-def search_articles(q: str = Query(..., description="The semantic search query"), db: Session = Depends(get_db)):
+def search_articles(q: str = Query(..., description="The semantic search query"), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Performs a vector similarity search across the entire database and generates a RAG answer.
     """
