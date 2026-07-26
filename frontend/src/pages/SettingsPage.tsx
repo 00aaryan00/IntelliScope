@@ -255,6 +255,19 @@ export function SettingsPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
               Articles matching tracked organizations make up 45% of the score. Articles matching target sectors make up 30% of the score.
             </p>
+            
+            {(!profile?.entities || profile.entities.length === 0) && (
+              <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                <p className="text-slate-500 dark:text-slate-400 mb-4 text-sm">No business entities configured.</p>
+                <button 
+                  onClick={() => setProfile(prev => prev ? {...prev, entities: [{ name: "My Business", tracked_organizations: [], target_sectors: [] }]} : prev)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Configure Business Rules
+                </button>
+              </div>
+            )}
+
             {(profile?.entities || []).map((entity, index) => (
               <div key={index} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
                 <div>
