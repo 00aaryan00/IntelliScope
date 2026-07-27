@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, SearchX, Sparkles } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { IntelligenceObjectCard, type IntelligenceObjectCardProps } from '../components/shared/IntelligenceObjectCard';
 import { searchArticles } from '../lib/api';
 
@@ -75,10 +77,10 @@ export function SearchPage() {
                 <Sparkles size={20} />
                 <h2>AI Synthesized Answer</h2>
               </div>
-              <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed">
-                {answer.split('\n').map((paragraph, idx) => (
-                  <p key={idx} className="mb-2">{paragraph}</p>
-                ))}
+              <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed marker:text-blue-500">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {answer}
+                </ReactMarkdown>
               </div>
             </motion.div>
           )}

@@ -340,10 +340,12 @@ def search_articles(q: str = Query(..., description="The semantic search query")
         
         # 2. Use pgvector's L2 distance operator (<->) to find the closest vectors in the database
         # We order by distance ascending (closest meaning lowest distance first)
+        # We also filter out vectors with an L2 distance > 1.2 to avoid injecting irrelevant context
         results = (
             db.query(Embedding, ProcessedArticle, SavedArticle)
             .join(ProcessedArticle, Embedding.processed_article_id == ProcessedArticle.id)
             .outerjoin(SavedArticle, (ProcessedArticle.id == SavedArticle.processed_article_id) & (SavedArticle.user_id == current_user.id))
+            .filter(Embedding.embedding.l2_distance(query_vector) < 1.2)
             .order_by(Embedding.embedding.l2_distance(query_vector))
             .limit(5)
             .all()

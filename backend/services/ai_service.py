@@ -129,11 +129,11 @@ def generate_rag_answer(query: str, context: str) -> str:
     {context}
     
     Instructions:
-    1. Answer the user's query directly and concisely.
-    2. Synthesize the information from the context.
-    3. If the context does not contain enough information to answer the query, state that clearly but provide whatever relevant insights you can glean.
-    4. Do not invent or hallucinate information outside of the context.
-    5. Format your response in clean markdown (e.g., use bolding for emphasis or bullet points if necessary). Do not use JSON.
+    1. Answer the user's query conversationally and naturally, acting as a helpful AI assistant.
+    2. Synthesize the provided context to answer the question as best as you can.
+    3. If the context doesn't perfectly answer the question, politely mention that you don't have the exact data in your recent database records, but smoothly transition into sharing whatever closely related insights you *do* have from the context.
+    4. Do not use robotic phrases like "The provided context does not contain..." or "According to the context...". Talk directly to the user.
+    5. Format your response beautifully in markdown with bullet points, bold text, and short paragraphs for readability.
     """
     
     API_URL = "https://api.groq.com/openai/v1/chat/completions"
