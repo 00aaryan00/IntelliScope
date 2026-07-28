@@ -165,4 +165,4 @@ def generate_rag_answer(query: str, context: str) -> str:
         return response.json()['choices'][0]['message']['content'].strip()
     except Exception as e:
         print(f"[ERROR] Error generating RAG answer: {e}")
-        return "I encountered an error while trying to synthesize an answer from the intelligence database."
+        return "I encountered an error while trying to synthesize an answer from the intelligence database..."
