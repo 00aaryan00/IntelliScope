@@ -65,7 +65,7 @@ def analyze_article(text: str) -> dict:
         
         output_text = response.json()['choices'][0]['message']['content']
         
-        # Clean up the response in case the model added markdown code blocks
+        # Clean up the response in case the model added markdown code block
         clean_text = output_text.replace('```json', '').replace('```', '').strip()
         result = json.loads(clean_text)
         return result
